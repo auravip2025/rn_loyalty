@@ -71,8 +71,8 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
     const singles = REWARDS.filter(r => r.type === 'single' || !r.type);
 
     return (
-        <View style={styles.container}>
-            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            <View style={styles.header}>
                 <TouchableOpacity onPress={onBack} style={styles.backButton}>
                     <ArrowLeft size={20} color="#0f172a" />
                 </TouchableOpacity>
@@ -81,7 +81,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
 
             <ScrollView
                 style={styles.content}
-                contentContainerStyle={styles.contentContainer}
+                contentContainerStyle={[styles.contentContainer, { paddingBottom: 40 + insets.bottom }]}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.balanceHeader}>
@@ -181,8 +181,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        paddingHorizontal: 0,
-        paddingTop: 0,
+        paddingHorizontal: 24,
+        paddingTop: 8,
         paddingBottom: 8,
     },
     backButton: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     contentContainer: {
-        paddingHorizontal: 0,
+        paddingHorizontal: 24,
         paddingBottom: 40,
     },
     balanceHeader: {

@@ -460,6 +460,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 100,
     flexGrow: 1,
+    paddingHorizontal: 24,
   },
   header: {
     flexDirection: 'row',
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
   },
   membershipCard: {
     width: '100%',
-    height: 160,
+    aspectRatio: 1.586,
     borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 20,
@@ -594,7 +595,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
-    paddingHorizontal: 8,
   },
   actionButton: {
     alignItems: 'center',
@@ -636,9 +636,10 @@ const styles = StyleSheet.create({
   },
   offersScroll: {
     marginBottom: 32,
+    marginHorizontal: -24,
   },
   offersContainer: {
-    paddingRight: 24,
+    paddingHorizontal: 24,
     gap: 12,
   },
   offerCard: {

@@ -1,19 +1,22 @@
-import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
-import {
+  Gift,
   PieChart,
   TrendingUp,
-  Gift,
   Zap,
 } from 'lucide-react-native';
+import React from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Card from '../../components/old_app/common/Card';
 
 const CustomerAnalytics = () => {
+  const insets = useSafeAreaInsets();
+
   const monthlyData = [
     { month: 'Jan', spend: 450, saved: 45 },
     { month: 'Feb', spend: 320, saved: 30 },
@@ -43,10 +46,10 @@ const CustomerAnalytics = () => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}>
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Insights</Text>
@@ -181,6 +184,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 100,
+    paddingHorizontal: 24,
   },
   header: {
     flexDirection: 'row',

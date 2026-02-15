@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -8,6 +9,7 @@ export default function ProfilePage() {
     const { logout } = useAuth();
     const { toggleTheme, isDark } = useTheme();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     const handleLogout = async () => {
         await logout();
@@ -15,7 +17,11 @@ export default function ProfilePage() {
     };
 
     return (
-        <View style={[styles.profileContainer, isDark && styles.profileContainerDark]}>
+        <View style={[
+            styles.profileContainer,
+            isDark && styles.profileContainerDark,
+            { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }
+        ]}>
             <Text style={[styles.profileTitle, isDark && styles.textDark]}>Profile</Text>
             <View style={[styles.profileCard, isDark && styles.profileCardDark]}>
                 <View style={styles.avatar}>

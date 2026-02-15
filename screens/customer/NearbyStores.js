@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 0,
+    paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 8,
   },
@@ -295,6 +295,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     position: 'relative',
     marginBottom: 0,
+    marginHorizontal: 24,
   },
   searchIcon: {
     position: 'absolute',
@@ -324,7 +325,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingRight: 24,
+    gap: 8,
+    paddingHorizontal: 24,
   },
   filterChip: {
     paddingHorizontal: 16,
@@ -352,6 +354,7 @@ const styles = StyleSheet.create({
   storeListContent: {
     paddingBottom: 100,
     gap: 12,
+    paddingHorizontal: 24,
   },
   storeCard: {
     paddingVertical: 16,
