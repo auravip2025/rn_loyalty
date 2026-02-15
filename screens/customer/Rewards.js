@@ -1,10 +1,10 @@
 import { ArrowLeft, Lock } from 'lucide-react-native';
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Badge from '../../components/old_app/common/Badge';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const REWARDS = [
     {
@@ -66,12 +66,11 @@ const REWARDS = [
 ];
 
 const Rewards = ({ onBack, balance, onRedeem }) => {
-    const insets = useSafeAreaInsets();
     const bundles = REWARDS.filter(r => r.type === 'bundle');
     const singles = REWARDS.filter(r => r.type === 'single' || !r.type);
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <ScreenWrapper paddingHorizontal={0}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={onBack} style={styles.backButton}>
                     <ArrowLeft size={20} color="#0f172a" />
@@ -81,7 +80,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
 
             <ScrollView
                 style={styles.content}
-                contentContainerStyle={[styles.contentContainer, { paddingBottom: 40 + insets.bottom }]}
+                contentContainerStyle={[styles.contentContainer, { paddingBottom: 40 }]}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.balanceHeader}>
@@ -168,7 +167,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
                     </View>
                 </View>
             </ScrollView>
-        </View>
+        </ScreenWrapper>
     );
 };
 

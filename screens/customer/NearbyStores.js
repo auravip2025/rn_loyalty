@@ -16,13 +16,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Badge from '../../components/old_app/common/Badge';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const NearbyStores = ({ onBack }) => {
-  const insets = useSafeAreaInsets();
   const [status, setStatus] = useState('prompt'); // prompt, loading, list
   const [stores, setStores] = useState([]);
   const [expandedMap, setExpandedMap] = useState(null);
@@ -56,8 +54,8 @@ const NearbyStores = ({ onBack }) => {
 
   if (status === 'prompt') {
     return (
-      <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <ScreenWrapper scroll={false} paddingHorizontal={0}>
+        <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <ArrowLeft size={20} color="#0f172a" />
           </TouchableOpacity>
@@ -81,14 +79,14 @@ const NearbyStores = ({ onBack }) => {
             </Button>
           </View>
         </View>
-      </View>
+      </ScreenWrapper>
     );
   }
 
   if (status === 'loading') {
     return (
-      <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <ScreenWrapper scroll={false} paddingHorizontal={0}>
+        <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <ArrowLeft size={20} color="#0f172a" />
           </TouchableOpacity>
@@ -99,13 +97,13 @@ const NearbyStores = ({ onBack }) => {
           <RefreshCw size={32} color="#4f46e5" style={styles.spinner} />
           <Text style={styles.loadingText}>Locating you...</Text>
         </View>
-      </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+    <ScreenWrapper scroll={false} paddingHorizontal={0}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <ArrowLeft size={20} color="#0f172a" />
         </TouchableOpacity>
@@ -208,7 +206,7 @@ const NearbyStores = ({ onBack }) => {
           ))}
         </ScrollView>
       </View>
-    </View>
+    </ScreenWrapper >
   );
 };
 

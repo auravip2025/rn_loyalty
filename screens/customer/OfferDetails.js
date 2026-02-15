@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../components/old_app/common/Button';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const { width } = Dimensions.get('window');
 
@@ -53,7 +54,12 @@ const OfferDetails = ({
 
   if (showQr) {
     return (
-      <View style={[styles.container, styles.qrContainer]}>
+      <ScreenWrapper
+        useSafeAreaTop={true} // QR view should have safe area
+        useSafeAreaBottom={true}
+        backgroundColor="#f8fafc"
+        paddingHorizontal={0}
+        style={styles.qrContainer}>
         <TouchableOpacity onPress={() => setShowQr(false)} style={styles.closeButton}>
           <ArrowLeft size={24} color="#0f172a" />
         </TouchableOpacity>
@@ -77,12 +83,16 @@ const OfferDetails = ({
         <Button variant="primary" onPress={() => onCheckout(total)} style={styles.doneButton}>
           Done
         </Button>
-      </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenWrapper
+      useSafeAreaTop={false}
+      useSafeAreaBottom={false}
+      paddingHorizontal={0}
+      backgroundColor="#000000">
       {/* Compact Hero */}
       <View style={styles.heroSection}>
         <Image source={{ uri: offer.image }} style={styles.heroImage} />
@@ -168,7 +178,7 @@ const OfferDetails = ({
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </ScreenWrapper>
   );
 };
 

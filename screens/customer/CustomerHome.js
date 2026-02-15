@@ -30,9 +30,9 @@ import Animated, {
   withSequence,
   withTiming
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import ScratchCardGame from '../../components/old_app/games/ScratchCardGame';
 import SpinWheelGame from '../../components/old_app/games/SpinWheelGame';
 import StampCardModal from '../../components/old_app/games/StampCardModal';
@@ -159,7 +159,6 @@ const CustomerHome = ({
   setDailyScratchUsed,
   handleCheckout,
 }) => {
-  const insets = useSafeAreaInsets();
   const [showWheel, setShowWheel] = useState(false);
   const [showScratch, setShowScratch] = useState(false);
   const [showStamps, setShowStamps] = useState(false);
@@ -233,11 +232,10 @@ const CustomerHome = ({
   }
 
   return (
-    <ScrollView
+    <ScreenWrapper
+      scroll
       ref={mainScrollViewRef}
-      style={[styles.container, { paddingTop: insets.top }]}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.contentContainer}>
+      showsVerticalScrollIndicator={false}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -449,7 +447,7 @@ const CustomerHome = ({
           program={stampsProgram}
         />
       )}
-    </ScrollView>
+    </ScreenWrapper>
   );
 };
 
@@ -458,9 +456,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 100,
-    flexGrow: 1,
-    paddingHorizontal: 24,
+    // paddingBottom: 100, // Handled by wrapper
+    // paddingHorizontal: 24, // Handled by wrapper
   },
   header: {
     flexDirection: 'row',

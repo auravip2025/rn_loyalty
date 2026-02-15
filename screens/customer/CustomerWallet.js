@@ -7,22 +7,19 @@ import {
 } from 'lucide-react-native';
 import React from 'react';
 import {
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const CustomerWallet = ({ balance, transactions, onOpenPayment }) => {
-  const insets = useSafeAreaInsets();
-
   return (
-    <ScrollView
-      style={[styles.container, { paddingTop: insets.top }]}
+    <ScreenWrapper
+      scroll
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}>
 
@@ -102,7 +99,7 @@ const CustomerWallet = ({ balance, transactions, onOpenPayment }) => {
           </Card>
         ))}
       </View>
-    </ScrollView>
+    </ScreenWrapper>
   );
 };
 
@@ -111,8 +108,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 100,
-    paddingHorizontal: 24,
+    // paddingBottom: 100, // Handled by wrapper
+    // paddingHorizontal: 24, // Handled by wrapper
   },
   header: {
     flexDirection: 'row',

@@ -6,17 +6,14 @@ import {
 } from 'lucide-react-native';
 import React from 'react';
 import {
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Card from '../../components/old_app/common/Card';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const CustomerAnalytics = () => {
-  const insets = useSafeAreaInsets();
-
   const monthlyData = [
     { month: 'Jan', spend: 450, saved: 45 },
     { month: 'Feb', spend: 320, saved: 30 },
@@ -45,9 +42,10 @@ const CustomerAnalytics = () => {
   ];
 
   return (
-    <ScrollView
-      style={[styles.container, { paddingTop: insets.top }]}
+    <ScreenWrapper
+      scroll
       showsVerticalScrollIndicator={false}
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}>
 
       {/* Header */}
@@ -174,7 +172,7 @@ const CustomerAnalytics = () => {
           ))}
         </View>
       </View>
-    </ScrollView>
+    </ScreenWrapper>
   );
 };
 
@@ -183,8 +181,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 100,
-    paddingHorizontal: 24,
+    // paddingBottom: 100,
+    // paddingHorizontal: 24,
   },
   header: {
     flexDirection: 'row',

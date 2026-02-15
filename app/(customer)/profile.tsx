@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -9,7 +9,6 @@ export default function ProfilePage() {
     const { logout } = useAuth();
     const { toggleTheme, isDark } = useTheme();
     const router = useRouter();
-    const insets = useSafeAreaInsets();
 
     const handleLogout = async () => {
         await logout();
@@ -17,49 +16,52 @@ export default function ProfilePage() {
     };
 
     return (
-        <View style={[
+        <ScreenWrapper style={[
             styles.profileContainer,
-            isDark && styles.profileContainerDark,
-            { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }
+            isDark && styles.profileContainerDark
         ]}>
-            <Text style={[styles.profileTitle, isDark && styles.textDark]}>Profile</Text>
-            <View style={[styles.profileCard, isDark && styles.profileCardDark]}>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>AJ</Text>
+            <View style={styles.content}>
+                <Text style={[styles.profileTitle, isDark && styles.textDark]}>Profile</Text>
+                <View style={[styles.profileCard, isDark && styles.profileCardDark]}>
+                    <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>AJ</Text>
+                    </View>
+                    <View>
+                        <Text style={[styles.userName, isDark && styles.textDark]}>Alex Johnson</Text>
+                        <Text style={styles.userBadge}>Prime Member • Level 42</Text>
+                    </View>
                 </View>
-                <View>
-                    <Text style={[styles.userName, isDark && styles.textDark]}>Alex Johnson</Text>
-                    <Text style={styles.userBadge}>Prime Member • Level 42</Text>
+                <View style={styles.profileActions}>
+                    <TouchableOpacity style={[styles.outlineButton, isDark && styles.outlineButtonDark]}>
+                        <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>Linked Accounts</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.outlineButton, isDark && styles.outlineButtonDark]}>
+                        <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>Notification Center</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.themeButton, isDark && styles.themeButtonDark]}
+                        onPress={toggleTheme}
+                    >
+                        <Text style={[styles.themeButtonText, isDark && styles.textDark]}>
+                            {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                        <Text style={styles.logoutText}>Sign Out</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
-            <View style={styles.profileActions}>
-                <TouchableOpacity style={[styles.outlineButton, isDark && styles.outlineButtonDark]}>
-                    <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>Linked Accounts</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.outlineButton, isDark && styles.outlineButtonDark]}>
-                    <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>Notification Center</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.themeButton, isDark && styles.themeButtonDark]}
-                    onPress={toggleTheme}
-                >
-                    <Text style={[styles.themeButtonText, isDark && styles.textDark]}>
-                        {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <Text style={styles.logoutText}>Sign Out</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
+        </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
     profileContainer: {
         flex: 1,
-        padding: 24,
         backgroundColor: '#ffffff',
+    },
+    content: {
+        paddingVertical: 24,
     },
     profileContainerDark: {
         backgroundColor: '#0f172a',
