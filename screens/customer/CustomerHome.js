@@ -1,4 +1,5 @@
 import { useIsFocused } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import {
   Bell,
   ChevronLeft,
@@ -37,9 +38,6 @@ import ScratchCardGame from '../../components/old_app/games/ScratchCardGame';
 import SpinWheelGame from '../../components/old_app/games/SpinWheelGame';
 import StampCardModal from '../../components/old_app/games/StampCardModal';
 import { OFFERS } from '../../utils/constants';
-import NearbyStores from './NearbyStores';
-import OfferDetails from './OfferDetails';
-import Rewards from './Rewards';
 
 const OfferCardItem = ({ offer, index, onPress }) => {
   const translateX = useSharedValue(200);
@@ -162,8 +160,8 @@ const CustomerHome = ({
   const [showWheel, setShowWheel] = useState(false);
   const [showScratch, setShowScratch] = useState(false);
   const [showStamps, setShowStamps] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [selectedOffer, setSelectedOffer] = useState(null);
+  const router = useRouter();
+
 
   const wheelProgram = programs.find(p => p.name === 'Wheel of Fortune' && p.active);
   const scratchProgram = programs.find(p => p.name === 'Scratch & Win' && p.active);
@@ -204,32 +202,7 @@ const CustomerHome = ({
     }
   };
 
-  if (currentView === 'nearby') {
-    return <NearbyStores onBack={() => setCurrentView('dashboard')} />;
-  }
 
-  if (currentView === 'rewards') {
-    return (
-      <Rewards
-        onBack={() => setCurrentView('dashboard')}
-        balance={balance}
-        onRedeem={(reward) => {
-          setSelectedOffer(reward);
-          setCurrentView('offerDetails');
-        }}
-      />
-    );
-  }
-
-  if (currentView === 'offerDetails' && selectedOffer) {
-    return (
-      <OfferDetails
-        offer={selectedOffer}
-        onBack={() => setCurrentView(selectedOffer.cost ? 'rewards' : 'dashboard')}
-        onCheckout={handleCheckout}
-      />
-    );
-  }
 
   return (
     <ScreenWrapper
@@ -285,8 +258,8 @@ const CustomerHome = ({
       <View style={styles.quickActions}>
         {[
           { icon: QrCode, label: 'Pay', color: '#eef2ff', iconColor: '#4f46e5', action: onScan },
-          { icon: Gift, label: 'Rewards', color: '#faf5ff', iconColor: '#9333ea', action: () => setCurrentView('rewards') },
-          { icon: MapPin, label: 'Nearby', color: '#ecfdf5', iconColor: '#059669', action: () => setCurrentView('nearby') },
+          { icon: Gift, label: 'Rewards', color: '#faf5ff', iconColor: '#9333ea', action: () => router.push('/customer-screens/rewards') },
+          { icon: MapPin, label: 'Nearby', color: '#ecfdf5', iconColor: '#059669', action: () => router.push('/customer-screens/nearby') },
           { icon: Trophy, label: 'Games', color: '#fffbeb', iconColor: '#d97706', action: scrollToGames },
         ].map((item, idx) => {
           const IconComponent = item.icon;
@@ -331,8 +304,10 @@ const CustomerHome = ({
             offer={offer}
             index={i}
             onPress={() => {
-              setSelectedOffer(offer);
-              setCurrentView('offerDetails');
+              router.push({
+                pathname: '/customer-screens/offer-details',
+                params: { offer: JSON.stringify(offer) }
+              });
             }}
           />
         ))}

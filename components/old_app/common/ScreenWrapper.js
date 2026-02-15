@@ -1,7 +1,8 @@
+import React, { forwardRef } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const ScreenWrapper = ({
+const ScreenWrapper = forwardRef(({
     children,
     scroll = false,
     style,
@@ -12,7 +13,7 @@ const ScreenWrapper = ({
     useSafeAreaBottom = true,
     bottomPadding = 100, // Standard app bottom padding for tab bar
     ...props
-}) => {
+}, ref) => {
     const insets = useSafeAreaInsets();
 
     const containerStyles = [
@@ -25,6 +26,7 @@ const ScreenWrapper = ({
     if (scroll) {
         return (
             <ScrollView
+                ref={ref}
                 style={containerStyles}
                 contentContainerStyle={[
                     styles.scrollContent,
@@ -41,13 +43,17 @@ const ScreenWrapper = ({
     }
 
     return (
-        <View style={[containerStyles, useSafeAreaBottom && { paddingBottom: insets.bottom }]} {...props}>
+        <View
+            ref={ref}
+            style={[containerStyles, useSafeAreaBottom && { paddingBottom: insets.bottom }]}
+            {...props}
+        >
             <View style={[styles.flex, { paddingHorizontal }]}>
                 {children}
             </View>
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {
