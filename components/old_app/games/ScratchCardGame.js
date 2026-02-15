@@ -1,30 +1,92 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { X, Trophy, Eraser } from 'lucide-react-native';
+import {
+  Canvas,
+  Group,
+  Path,
+  Rect,
+  Skia
+} from "@shopify/react-native-skia";
+import { Trophy, X } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS, useAnimatedReaction, useSharedValue, withTiming } from 'react-native-reanimated';
 import Button from '../common/Button';
+
+const CARD_WIDTH = 300;
+const CARD_HEIGHT = 150;
 
 const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
   const [isRevealed, setIsRevealed] = useState(false);
   const [prize, setPrize] = useState(null);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Logic state for checking completion
+  const scrapedLength = useSharedValue(0);
+  const isRevealedSV = useSharedValue(false); // UI thread tracker
+
+  // Skia Values
+  const path = useSharedValue(Skia.Path.Make());
+  const opacity = useSharedValue(1);
 
   useEffect(() => {
     const random = Math.floor(Math.random() * outcomes.length);
     setPrize(outcomes[random]);
   }, [outcomes]);
 
-  const handleReveal = () => {
+  const handleFullReveal = () => {
+    // Fallback for manual button press (still needs to work from JS)
     if (isRevealed) return;
-
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 700,
-      useNativeDriver: true,
-    }).start(() => {
-      setIsRevealed(true);
-      if (onWin && prize) onWin(prize);
+    setIsRevealed(true);
+    opacity.value = withTiming(0, { duration: 500 }, (finished) => {
+      if (finished && onWin && prize) {
+        onWin(prize); // Called from JS thread, safe
+      }
     });
   };
+
+  // React to the shared value change on the UI thread
+  useAnimatedReaction(
+    () => isRevealedSV.value,
+    (revealed, prev) => {
+      if (revealed && !prev) {
+        // 1. Run animation on UI thread
+        opacity.value = withTiming(0, { duration: 500 }, (finished) => {
+          if (finished) {
+            // 2. Call callback on JS thread
+            runOnJS(onWin)(prize);
+          }
+        });
+
+        // 3. Update React state
+        runOnJS(setIsRevealed)(true);
+      }
+    },
+    [prize, onWin] // Dependencies to ensure capture
+  );
+
+  const panGesture = Gesture.Pan()
+    .onStart((g) => {
+      if (isRevealedSV.value) return;
+
+      // Create a copy to trigger reactivity
+      const p = path.value.copy();
+      p.moveTo(g.x, g.y);
+      p.lineTo(g.x, g.y);
+      path.value = p;
+    })
+    .onUpdate((g) => {
+      if (isRevealedSV.value) return;
+
+      const p = path.value.copy();
+      p.lineTo(g.x, g.y);
+      path.value = p;
+
+      scrapedLength.value += 5;
+
+      // Check on UI thread
+      if (scrapedLength.value > 800) {
+        isRevealedSV.value = true;
+      }
+    });
 
   return (
     <View style={styles.overlay}>
@@ -35,11 +97,12 @@ const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
 
         <View style={styles.header}>
           <Text style={styles.title}>Scratch & Win</Text>
-          <Text style={styles.subtitle}>Tap the card to see what you won!</Text>
+          <Text style={styles.subtitle}>Use your finger to scratch and win!</Text>
         </View>
 
-        <View style={styles.cardContainer}>
-          <View style={styles.prizeContainer}>
+        <View style={styles.cardWrapper}>
+          {/* Prize Layer (Bottom) */}
+          <View style={styles.prizeLayer}>
             {prize && (
               <>
                 <Trophy
@@ -52,29 +115,50 @@ const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
             )}
           </View>
 
-          <TouchableOpacity activeOpacity={1} onPress={handleReveal} style={styles.scratchLayerContainer}>
-            <Animated.View
-              style={[
-                styles.scratchLayer,
-                { opacity: fadeAnim }
-              ]}
-            >
-              <Text style={styles.scratchText}>Tap to Scratch</Text>
-            </Animated.View>
-          </TouchableOpacity>
+          {/* Scratch Layer (Top - Skia Canvas) */}
+          <View style={styles.scratchLayer}>
+            <GestureDetector gesture={panGesture}>
+              <Canvas
+                style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+              >
+                <Group opacity={opacity}>
+                  {/* The gray cover */}
+                  <Rect x={0} y={0} width={CARD_WIDTH} height={CARD_HEIGHT} color="#94a3b8" />
+
+                  {/* The Scratch Path (Eraser) */}
+                  <Path
+                    path={path}
+                    color="transparent"
+                    style="stroke"
+                    strokeWidth={40}
+                    strokeCap="round"
+                    strokeJoin="round"
+                    blendMode="clear" // This punches through the Rect to show transparency
+                  />
+                </Group>
+              </Canvas>
+            </GestureDetector>
+
+            {/* Instruction Overlay */}
+            {!isRevealed && scrapedLength.value < 50 && (
+              <View style={styles.instructionOverlay} pointerEvents="none">
+                <Text style={styles.instructionText}>Scratch Here</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {isRevealed ? (
           <Button onPress={onClose} variant="merchant" style={styles.collectButton}>
-            Collect
+            Collect Prize
           </Button>
         ) : (
           <Button
-            onPress={handleReveal}
-            variant="primary"
+            onPress={handleFullReveal}
+            variant="secondary"
             style={styles.revealButton}
           >
-            Reveal Prize
+            Reveal All
           </Button>
         )}
       </View>
@@ -90,7 +174,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.8)',
-    backdropFilter: 'blur(8px)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -102,8 +185,6 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     borderRadius: 32,
     padding: 24,
-    position: 'relative',
-    overflow: 'hidden',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -137,9 +218,9 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 4,
   },
-  cardContainer: {
-    width: 300,
-    height: 150,
+  cardWrapper: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     marginBottom: 24,
     position: 'relative',
     borderRadius: 16,
@@ -149,7 +230,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: '#f8fafc',
   },
-  prizeContainer: {
+  prizeLayer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -159,15 +240,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 0,
   },
-  trophyIcon: {
-    marginBottom: 8,
-  },
-  prizeText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#4f46e5',
-  },
-  scratchLayerContainer: {
+  scratchLayer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -175,16 +248,31 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 10,
   },
-  scratchLayer: {
-    flex: 1,
-    backgroundColor: '#94a3b8',
+  instructionOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 15,
   },
-  scratchText: {
+  instructionText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  trophyIcon: {
+    marginBottom: 8,
+  },
+  prizeText: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#4f46e5',
   },
   collectButton: {
     width: '100%',
