@@ -40,11 +40,11 @@ const OfferDetails = ({
 
   const total = isCashPurchase
     ? `$${(unitPrice * quantity).toFixed(2)}`
-    : `${(unitPrice * quantity)} pts`;
+    : `${(unitPrice * quantity)} dandan`;
 
   const displayPrice = isCashPurchase
     ? `$${unitPrice.toFixed(2)}`
-    : `${unitPrice} pts`;
+    : `${unitPrice} dandan`;
 
   const isBundle = offer.type === 'bundle';
 

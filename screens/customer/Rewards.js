@@ -86,7 +86,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
                 <View style={styles.balanceHeader}>
                     <Text style={styles.balanceLabel}>Your Balance</Text>
                     <Text style={styles.balanceAmount}>
-                        {balance.toLocaleString()} <Text style={styles.balanceUnit}>pts</Text>
+                        {balance.toLocaleString()} <Text style={styles.balanceUnit}>dandan</Text>
                     </Text>
                 </View>
 
@@ -103,7 +103,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
                                     <View style={styles.rewardContent}>
                                         <Text style={styles.rewardTitle}>{reward.title}</Text>
                                         <Text style={styles.rewardCost}>
-                                            {reward.cost} pts
+                                            {reward.cost} dandan
                                             <Text style={styles.originalCost}> {reward.originalCost}</Text>
                                         </Text>
                                         <View style={styles.bundleInfo}>
@@ -118,7 +118,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
                                                 style={styles.actionButton}
                                                 textStyle={styles.actionButtonText}
                                             >
-                                                {reward.cost} pts
+                                                {reward.cost} dandan
                                             </Button>
                                             <Button
                                                 onPress={() => onRedeem({ ...reward, isCash: true })}
@@ -144,7 +144,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
                                 <Image source={{ uri: reward.image }} style={styles.rewardImage} />
                                 <View style={styles.rewardContent}>
                                     <Text style={styles.rewardTitle}>{reward.title}</Text>
-                                    <Text style={styles.rewardCost}>{reward.cost} pts</Text>
+                                    <Text style={styles.rewardCost}>{reward.cost} dandan</Text>
 
                                     {reward.locked ? (
                                         <Button disabled variant="secondary" style={styles.redeemButton}>

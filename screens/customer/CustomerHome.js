@@ -16,6 +16,7 @@ import {
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -226,6 +227,16 @@ const CustomerHome = ({
       <View>
         <TouchableOpacity onPress={onOpenWallet} style={styles.membershipCard}>
           <View style={styles.cardGradient}>
+            {/* Background Pattern */}
+            <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 20 }]}>
+              <Crown
+                size={240}
+                color="#ffffff"
+                style={{ position: 'absolute', right: -60, bottom: -60, opacity: 0.04, transform: [{ rotate: '-20deg' }] }}
+              />
+              <View style={{ position: 'absolute', top: -100, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: '#ffffff', opacity: 0.02 }} />
+            </View>
+
             <View style={styles.cardHeader}>
               <View style={styles.memberBadge}>
                 <Crown size={14} color="#fbbf24" fill="#fbbf24" />
@@ -236,10 +247,15 @@ const CustomerHome = ({
               </View>
             </View>
 
-            <Text style={styles.balanceAmount}>
-              {balance.toLocaleString()}{' '}
-              <Text style={styles.balanceUnit}>dandan</Text>
-            </Text>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginVertical: 12 }}>
+              <Text style={{ color: '#94a3b8', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, textAlign: 'center' }}>
+                Available Balance
+              </Text>
+              <Text style={{ fontSize: 48, fontWeight: '900', color: '#ffffff', letterSpacing: -1, textAlign: 'center' }}>
+                {balance.toLocaleString()}
+                <Text style={{ fontSize: 20, color: '#fbbf24', fontWeight: '700' }}> dandan</Text>
+              </Text>
+            </View>
 
             <View style={styles.progressSection}>
               <View style={styles.progressHeader}>
@@ -248,6 +264,10 @@ const CustomerHome = ({
               </View>
               <View style={styles.progressBar}>
                 <View style={[styles.progressFill, { width: '75%' }]} />
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, opacity: 0.5 }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>ID: 8839201</Text>
+                <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>09/28</Text>
               </View>
             </View>
           </View>
