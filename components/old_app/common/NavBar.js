@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const NavBar = ({ activeTab, setActiveTab, tabs }) => {
   const hasPrimary = tabs.some(t => t.primary);

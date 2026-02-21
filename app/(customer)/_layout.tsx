@@ -1,8 +1,7 @@
-import { TabBar } from '@/components/navigation/TabBar';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { TabBar } from "@/components/navigation/TabBar";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Tabs } from "expo-router";
 
 export default function CustomerLayout() {
     return (
