@@ -1,10 +1,13 @@
+import { TabBar } from '@/components/navigation/TabBar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
 export default function CustomerLayout() {
     return (
         <Tabs
+            tabBar={(props: BottomTabBarProps) => <TabBar {...props} />}
             screenOptions={{
                 headerShown: false,
                 tabBarActiveTintColor: '#4f46e5',
