@@ -14,9 +14,9 @@ export default function Index() {
             if (response.success) {
                 // Navigate based on role
                 if (selectedRole === 'customer') {
-                    router.replace('/(customer)');
+                    router.replace('/(customer)/home');
                 } else {
-                    router.replace('/(merchant)');
+                    router.replace('/(merchant)/dashboard');
                 }
             } else {
                 console.error('Login failed:', response.error);
@@ -30,9 +30,9 @@ export default function Index() {
     React.useEffect(() => {
         if (isAuthenticated && role) {
             if (role === 'customer') {
-                router.replace('/(customer)');
+                router.replace('/(customer)/home');
             } else {
-                router.replace('/(merchant)');
+                router.replace('/(merchant)/dashboard');
             }
         }
     }, [isAuthenticated, role]);

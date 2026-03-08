@@ -2,8 +2,24 @@ import { TabBar } from "@/components/navigation/TabBar";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function CustomerLayout() {
+    const { isAuthenticated, loading } = useAuth();
+
+    if (loading) return null;
+    // useEffect(() => {
+    //     console.log("CustomerLayout isAuthenticated", isAuthenticated);
+    //     if (!isAuthenticated) {
+    //         router.replace('/');
+    //     }
+    // }, [isAuthenticated]);
+
+    // if (!isAuthenticated) {
+    //     return <Redirect href="/" />;
+    // }
+
+
     return (
         <Tabs
             tabBar={(props: BottomTabBarProps) => <TabBar {...props} />}
@@ -12,7 +28,7 @@ export default function CustomerLayout() {
                 tabBarActiveTintColor: '#4f46e5',
             }}>
             <Tabs.Screen
-                name="index"
+                name="home"
                 options={{
                     title: 'Home',
                     tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,

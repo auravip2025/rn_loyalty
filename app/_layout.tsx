@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -25,13 +25,17 @@ function RootLayoutNav() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    console.log('[Navigation Path]', pathname);
+  }, [pathname]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       // Force navigation to the absolute root when unauthenticated 
       // This catches edge cases where the nested layout unmounts too fast
       setTimeout(() => {
-        router.dismissAll();
         router.replace('/');
       }, 0);
     }
