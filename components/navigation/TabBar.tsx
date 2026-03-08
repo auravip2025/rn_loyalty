@@ -17,8 +17,21 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const insets = useSafeAreaInsets();
 
+    const activeRoutes = state.routes.filter(route => {
+        const { options } = descriptors[route.key];
+        // If a route doesn't have a tabBarIcon defined in _layout.tsx, we hide it!
+        // This instantly hides offer-details and any automatically injected ghost routes.
+        return options.tabBarIcon !== undefined && route.name !== 'offer-details';
+    });
+    const activeRouteIndex = activeRoutes.findIndex(
+        route => route.key === state.routes[state.index].key
+    );
+    // If we're on a hidden route (like offer-details), we might just keep the indicator where it was or hide it.
+    // For simplicity, we fallback to 0 if not found in activeRoutes.
+    const safeActiveIndex = activeRouteIndex >= 0 ? activeRouteIndex : 0;
+
     const containerWidth = useSharedValue(SCREEN_WIDTH - 40);
-    const buttonWidth = useDerivedValue(() => containerWidth.value / state.routes.length);
+    const buttonWidth = useDerivedValue(() => containerWidth.value / activeRoutes.length);
 
     const INDICATOR_SIZE = 64;
     const TABBAR_HEIGHT = 64;
@@ -30,15 +43,15 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     };
 
     // This is the source of truth for the spring motion
-    const tabPositionX = useSharedValue(state.index);
+    const tabPositionX = useSharedValue(safeActiveIndex);
 
     useEffect(() => {
-        tabPositionX.value = withSpring(state.index, {
+        tabPositionX.value = withSpring(safeActiveIndex, {
             damping: 18,
             stiffness: 120,
             mass: 0.8,
         });
-    }, [state.index]);
+    }, [safeActiveIndex]);
 
     const animatedIndicatorStyle = useAnimatedStyle(() => {
         const x = tabPositionX.value * buttonWidth.value;
@@ -62,9 +75,9 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 animatedIndicatorStyle
             ]} />
 
-            {state.routes.map((route, index) => {
+            {activeRoutes.map((route, index) => {
                 const { options } = descriptors[route.key];
-                const isFocused = state.index === index;
+                const isFocused = safeActiveIndex === index;
 
                 const onPress = () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -106,7 +119,6 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 function TabIcon({ index, tabPositionX, icon, indicatorTop, indicatorSize, tabbarHeight }: any) {
     // const targetY = indicatorTop + (indicatorSize / 2) - (tabbarHeight / 2);
     const targetY = indicatorTop + Math.abs(24 / 4);
-    console.log("indicatorTop", indicatorTop, "targetY", targetY, "indicatorSize", indicatorSize, "tabbarHeight", tabbarHeight);
 
     const animatedIconStyle = useAnimatedStyle(() => {
         // Calculate "proximity" to the indicator (0 to 1)

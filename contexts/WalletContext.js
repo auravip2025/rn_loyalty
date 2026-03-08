@@ -1,63 +1,43 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useContext } from 'react';
+import { DEDUCT_POINTS, EARN_POINTS, GET_WALLET, useMutation, useQuery } from '../api/client';
 
 const WalletContext = createContext({});
 
 export const useWallet = () => useContext(WalletContext);
 
 export const WalletProvider = ({ children }) => {
-  const [balance, setBalance] = useState(12450);
-  const [transactions, setTransactions] = useState([
-    { 
-      id: 1, 
-      merchant: 'The Coffee House', 
-      amount: 50, 
-      type: 'earn', 
-      date: 'Today, 10:23 AM' 
-    },
-    { 
-      id: 2, 
-      merchant: 'Urban Outfitters', 
-      amount: 1200, 
-      type: 'spend', 
-      date: 'Yesterday' 
-    },
-    { 
-      id: 3, 
-      merchant: 'Green Grocer', 
-      amount: 350, 
-      type: 'earn', 
-      date: 'Oct 24' 
-    },
-  ]);
+  const { data, loading, refetch } = useQuery(GET_WALLET);
+  const [deductMutation] = useMutation(DEDUCT_POINTS);
+  const [earnMutation] = useMutation(EARN_POINTS);
 
-  const deductPoints = (amount, merchant) => {
-    setBalance(prev => prev - amount);
-    
-    const transaction = {
+  const balance = data?.wallet?.balance || 0;
+  const transactions = data?.wallet?.transactions || [];
+
+  const deductPoints = async (amount, merchant) => {
+    // Optimistic UI could be done here, but let's emulate network resolving
+    await deductMutation({ variables: { amount, merchant } });
+    await refetch();
+    // In our mock, the transaction is just created under the hood
+    // so returning a mock transaction to fulfill legacy promises
+    return {
       id: Date.now(),
       merchant,
       amount,
       type: 'spend',
       date: 'Just now',
     };
-    
-    setTransactions(prev => [transaction, ...prev]);
-    return transaction;
   };
 
-  const earnPoints = (amount, merchant) => {
-    setBalance(prev => prev + amount);
-    
-    const transaction = {
+  const earnPoints = async (amount, merchant) => {
+    await earnMutation({ variables: { amount, merchant } });
+    await refetch();
+    return {
       id: Date.now(),
       merchant,
       amount,
       type: 'earn',
       date: 'Just now',
     };
-    
-    setTransactions(prev => [transaction, ...prev]);
-    return transaction;
   };
 
   return (
@@ -66,6 +46,7 @@ export const WalletProvider = ({ children }) => {
       transactions,
       deductPoints,
       earnPoints,
+      loading
     }}>
       {children}
     </WalletContext.Provider>

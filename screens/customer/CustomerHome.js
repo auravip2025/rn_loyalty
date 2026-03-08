@@ -2,6 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import {
   Bell,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Coffee,
@@ -11,7 +12,8 @@ import {
   MapPin,
   QrCode,
   RefreshCw,
-  Trophy
+  Trophy,
+  UserPlus,
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -38,7 +40,15 @@ import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import ScratchCardGame from '../../components/old_app/games/ScratchCardGame';
 import SpinWheelGame from '../../components/old_app/games/SpinWheelGame';
 import StampCardModal from '../../components/old_app/games/StampCardModal';
-import { OFFERS } from '../../utils/constants';
+
+const iconMap = {
+  RefreshCw,
+  MapPin,
+  Coffee,
+  UserPlus,
+  Trophy,
+  Star: Crown, // fallback icon
+};
 
 const OfferCardItem = ({ offer, index, onPress }) => {
   const translateX = useSharedValue(200);
@@ -148,6 +158,8 @@ const Shimmer = ({ width = 160, duration = 2000, delay = 0 }) => {
 
 const CustomerHome = ({
   programs,
+  dailyQuests,
+  offers,
   balance,
   onOpenWallet,
   onScan,
@@ -318,14 +330,14 @@ const CustomerHome = ({
         scrollEventThrottle={16}
         style={styles.offersScroll}
         contentContainerStyle={styles.offersContainer}>
-        {OFFERS.map((offer, i) => (
+        {offers?.map((offer, i) => (
           <OfferCardItem
             key={i}
             offer={offer}
             index={i}
             onPress={() => {
               router.push({
-                pathname: '/customer-screens/offer-details',
+                pathname: '/(customer)/offer-details',
                 params: { offer: JSON.stringify(offer) }
               });
             }}
@@ -411,7 +423,25 @@ const CustomerHome = ({
           </Card>
         )}
 
-        {!wheelProgram && !scratchProgram && !stampsProgram && (
+        {dailyQuests?.map((quest) => {
+          const IconComp = iconMap[quest.icon] || Trophy;
+          return (
+            <Card key={quest.id} style={[styles.questCard, quest.completed && { opacity: 0.7, borderColor: '#ecfdf5' }]}>
+              <View style={[styles.questIcon, quest.completed && { backgroundColor: '#d1fae5' }]}>
+                {quest.completed ? <CheckCircle size={24} color="#059669" /> : <IconComp size={24} color="#0f172a" />}
+              </View>
+              <View style={styles.questInfo}>
+                <Text style={styles.questName}>{quest.title}</Text>
+                <Text style={styles.questStatus}>{quest.desc}</Text>
+              </View>
+              <View style={styles.questPointsBadge}>
+                <Text style={styles.questPointsText}>+{quest.points} pts</Text>
+              </View>
+            </Card>
+          );
+        })}
+
+        {!wheelProgram && !scratchProgram && !stampsProgram && (!dailyQuests || dailyQuests.length === 0) && (
           <Card style={styles.emptyQuestCard}>
             <Text style={styles.emptyQuestText}>No active games right now.</Text>
           </Card>
@@ -734,6 +764,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#94a3b8',
   },
+  questPointsBadge: {
+    backgroundColor: '#fffbeb',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  questPointsText: {
+    color: '#d97706',
+    fontWeight: '900',
+    fontSize: 12,
+  }
 });
 
 export default CustomerHome;
