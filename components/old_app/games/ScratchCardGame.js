@@ -9,7 +9,8 @@ import { Trophy, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS, useAnimatedReaction, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useAnimatedReaction, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import Button from '../common/Button';
 
 const CARD_WIDTH = 300;
@@ -52,12 +53,12 @@ const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
         opacity.value = withTiming(0, { duration: 500 }, (finished) => {
           if (finished) {
             // 2. Call callback on JS thread
-            runOnJS(onWin)(prize);
+            scheduleOnRN(onWin, prize);
           }
         });
 
         // 3. Update React state
-        runOnJS(setIsRevealed)(true);
+        scheduleOnRN(setIsRevealed, true);
       }
     },
     [prize, onWin] // Dependencies to ensure capture

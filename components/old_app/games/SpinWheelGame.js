@@ -1,63 +1,32 @@
+import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import { RefreshCw, X } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import Button from '../common/Button';
 
 const SpinWheelGame = ({ onClose, segments, onWin }) => {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const rotation = useSharedValue(0);
 
   const prizes = segments || [];
-  const radius = 112; // consistent with wheel style size
+  const radius = 112;
   const center = radius;
 
-  const handleSpin = () => {
-    if (spinning || result) return;
-    setSpinning(true);
-
-    const segmentAngle = 360 / prizes.length;
-    const randomSegment = Math.floor(Math.random() * prizes.length);
-    // Add extra spins (5 full rotations) + target segment
-    // Note: We need to account for the pointer position (top) vs 0 degrees (right)
-    // React Native coordinate system: 0 deg is right (3 o'clock). Pointer is at top (12 o'clock, -90deg).
-    // So to land on a segment, we rotate the wheel such that the segment is at -90deg.
-
-    const extraSpins = 360 * 5;
-    const targetAngle = extraSpins + (360 - (randomSegment * segmentAngle)) - (segmentAngle / 2);
-
-    Animated.timing(rotateAnim, {
-      toValue: targetAngle,
-      duration: 3000,
-      useNativeDriver: true,
-    }).start(() => {
-      setSpinning(false);
-      setResult(prizes[randomSegment]);
-      if (onWin) onWin(prizes[randomSegment]);
-    });
-  };
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 360],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const getCoordinates = (percent) => {
-    const x = Math.cos(2 * Math.PI * percent);
-    const y = Math.sin(2 * Math.PI * percent);
-    return [x, y];
-  };
-
-  const renderWheel = () => {
+  const wheelData = useMemo(() => {
     let cumulativePercent = 0;
-
     return prizes.map((prize, index) => {
       const percent = 1 / prizes.length;
 
-      const [startX, startY] = getCoordinates(cumulativePercent);
-      cumulativePercent += percent;
-      const [endX, endY] = getCoordinates(cumulativePercent);
+      const startAngle = cumulativePercent * 2 * Math.PI;
+      const endAngle = (cumulativePercent + percent) * 2 * Math.PI;
+
+      const startX = Math.cos(startAngle);
+      const startY = Math.sin(startAngle);
+      const endX = Math.cos(endAngle);
+      const endY = Math.sin(endAngle);
 
       const largeArcFlag = percent > 0.5 ? 1 : 0;
 
@@ -68,35 +37,59 @@ const SpinWheelGame = ({ onClose, segments, onWin }) => {
         'Z',
       ].join(' ');
 
-      // Calculate text position (mid-angle)
-      const midAngle = (cumulativePercent - (percent / 2)) * 2 * Math.PI;
+      const path = Skia.Path.MakeFromSVGString(pathData);
+
+      const midAngle = startAngle + (endAngle - startAngle) / 2;
       const textRadius = radius * 0.65;
       const textX = center + textRadius * Math.cos(midAngle);
       const textY = center + textRadius * Math.sin(midAngle);
+      const rotationAngle = (midAngle * 180 / Math.PI) + 90;
 
-      // Rotation for text to face inward
-      const rotationAngle = (midAngle * 180 / Math.PI) + 90; // Adjust +90 to align text
+      cumulativePercent += percent;
 
-      return (
-        <G key={index}>
-          <Path d={pathData} fill={prize.color} stroke="#ffffff" strokeWidth="2" />
-          <G rotation={rotationAngle} origin={`${textX}, ${textY}`}>
-            <SvgText
-              x={textX}
-              y={textY}
-              fill="#ffffff"
-              textAnchor="middle"
-              fontSize="10"
-              fontWeight="bold"
-              alignmentBaseline="middle"
-            >
-              {prize.label}
-            </SvgText>
-          </G>
-        </G>
-      );
+      return {
+        path,
+        color: prize.color,
+        label: prize.label,
+        textX,
+        textY,
+        rotationAngle,
+        key: index
+      };
+    });
+  }, [prizes, center, radius]);
+
+  const handleSpinEnd = (segmentOffset) => {
+    setSpinning(false);
+    setResult(prizes[segmentOffset]);
+    if (onWin) onWin(prizes[segmentOffset]);
+  };
+
+  const handleSpin = () => {
+    if (spinning || result) return;
+    setSpinning(true);
+
+    const segmentAngle = 360 / prizes.length;
+    const randomSegment = Math.floor(Math.random() * prizes.length);
+
+    const extraSpins = 360 * 5;
+    const targetAngle = extraSpins + (360 - (randomSegment * segmentAngle)) - (segmentAngle / 2);
+
+    rotation.value = withTiming(targetAngle, {
+      duration: 3500,
+      easing: Easing.bezier(0.25, 0.1, 0.1, 1),
+    }, (finished) => {
+      if (finished) {
+        scheduleOnRN(handleSpinEnd, randomSegment);
+      }
     });
   };
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value - 90}deg` }]
+    };
+  });
 
   return (
     <View style={styles.overlay}>
@@ -115,17 +108,35 @@ const SpinWheelGame = ({ onClose, segments, onWin }) => {
             <View style={styles.triangle} />
           </View>
 
-          <Animated.View
-            style={[
-              styles.wheel,
-              { transform: [{ rotate: spin }] }
-            ]}
-          >
-            <Svg height="224" width="224" viewBox="0 0 224 224">
-              <G rotation="-90" origin={`${center}, ${center}`}>
-                {renderWheel()}
-              </G>
-            </Svg>
+          <Animated.View style={[styles.wheel, animatedStyle]}>
+            <Canvas style={StyleSheet.absoluteFill}>
+              {wheelData.map((w) => (
+                <Path key={`path-${w.key}`} path={w.path} color={w.color} style="fill" />
+              ))}
+              {wheelData.map((w) => (
+                <Path key={`stroke-${w.key}`} path={w.path} color="#ffffff" style="stroke" strokeWidth={2} />
+              ))}
+            </Canvas>
+
+            <View style={StyleSheet.absoluteFill}>
+              {wheelData.map((w) => (
+                <View
+                  key={`text-${w.key}`}
+                  style={{
+                    position: 'absolute',
+                    left: w.textX - 50,
+                    top: w.textY - 10,
+                    width: 100,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    transform: [{ rotate: `${w.rotationAngle}deg` }]
+                  }}
+                >
+                  <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>{w.label}</Text>
+                </View>
+              ))}
+            </View>
 
             <View style={styles.centerCircle}>
               <RefreshCw size={20} color="#cbd5e1" />
@@ -230,10 +241,10 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
     borderLeftWidth: 12,
     borderRightWidth: 12,
-    borderBottomWidth: 24,
+    borderTopWidth: 24,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#f43f5e',
+    borderTopColor: '#f43f5e',
   },
   wheel: {
     width: 224,
