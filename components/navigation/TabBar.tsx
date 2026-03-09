@@ -61,6 +61,10 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         };
     });
 
+    if (state.routes[state.index].name === 'offer-details') {
+        return null;
+    }
+
     return (
         <View onLayout={onTabbarLayout} style={[styles.tabbar, { bottom: insets.bottom + 10 }]}>
             {/* The sliding background indicator */}
