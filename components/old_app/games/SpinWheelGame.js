@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { RefreshCw, X } from 'lucide-react-native';
-import Svg, { Path, G, Text as SvgText, TSpan } from 'react-native-svg';
+import React, { useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { G, Path, Text as SvgText } from 'react-native-svg';
 import Button from '../common/Button';
 
 const SpinWheelGame = ({ onClose, segments, onWin }) => {

@@ -1,8 +1,8 @@
+import { Coffee, X } from 'lucide-react-native';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { X, Coffee } from 'lucide-react-native';
-import Button from '../common/Button';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Badge from '../common/Badge';
+import Button from '../common/Button';
 
 const StampCardModal = ({ onClose, program }) => {
   const totalStamps = 10;

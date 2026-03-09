@@ -218,236 +218,239 @@ const CustomerHome = ({
 
 
   return (
-    <ScreenWrapper
-      scroll
-      ref={mainScrollViewRef}
-      showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1 }}>
+      <ScreenWrapper
+        scroll
+        ref={mainScrollViewRef}
+        showsVerticalScrollIndicator={false}>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Good Morning</Text>
-          <Text style={styles.userName}>Alex Johnson</Text>
-        </View>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Bell size={20} color="#475569" />
-          <View style={styles.notificationBadge} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Membership Card */}
-      <View>
-        <TouchableOpacity onPress={onOpenWallet} style={styles.membershipCard}>
-          <View style={styles.cardGradient}>
-            {/* Background Pattern */}
-            <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 20 }]}>
-              <Crown
-                size={240}
-                color="#ffffff"
-                style={{ position: 'absolute', right: -60, bottom: -60, opacity: 0.04, transform: [{ rotate: '-20deg' }] }}
-              />
-              <View style={{ position: 'absolute', top: -100, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: '#ffffff', opacity: 0.02 }} />
-            </View>
-
-            <View style={styles.cardHeader}>
-              <View style={styles.memberBadge}>
-                <Crown size={14} color="#fbbf24" fill="#fbbf24" />
-                <Text style={styles.memberText}>Gold Member</Text>
-              </View>
-              <View style={styles.qrIcon}>
-                <QrCode size={20} color="#ffffff" />
-              </View>
-            </View>
-
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginVertical: 12 }}>
-              <Text style={{ color: '#94a3b8', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, textAlign: 'center' }}>
-                Available Balance
-              </Text>
-              <Text style={{ fontSize: 48, fontWeight: '900', color: '#ffffff', letterSpacing: -1, textAlign: 'center' }}>
-                {balance.toLocaleString()}
-                <Text style={{ fontSize: 20, color: '#fbbf24', fontWeight: '700' }}> dandan</Text>
-              </Text>
-            </View>
-
-            <View style={styles.progressSection}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>Next: Platinum</Text>
-                <Text style={styles.progressPercentage}>75%</Text>
-              </View>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: '75%' }]} />
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, opacity: 0.5 }}>
-                <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>ID: 8839201</Text>
-                <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>09/28</Text>
-              </View>
-            </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Good Morning</Text>
+            <Text style={styles.userName}>Alex Johnson</Text>
           </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        {[
-          { icon: QrCode, label: 'Pay', color: '#eef2ff', iconColor: '#4f46e5', action: onScan },
-          { icon: Gift, label: 'Rewards', color: '#faf5ff', iconColor: '#9333ea', action: () => router.push('/customer-screens/rewards') },
-          { icon: MapPin, label: 'Nearby', color: '#ecfdf5', iconColor: '#059669', action: () => router.push('/customer-screens/nearby') },
-          { icon: Trophy, label: 'Games', color: '#fffbeb', iconColor: '#d97706', action: scrollToGames },
-        ].map((item, idx) => {
-          const IconComponent = item.icon;
-          return (
-            <TouchableOpacity
-              key={idx}
-              onPress={item.action}
-              style={styles.actionButton}>
-              <View style={[styles.actionIcon, { backgroundColor: item.color }]}>
-                <IconComponent size={24} color={item.iconColor} />
-              </View>
-              <Text style={styles.actionLabel}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Offers Section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>For You</Text>
-        <View style={styles.scrollButtons}>
-          <TouchableOpacity onPress={scrollLeft} style={styles.scrollButton}>
-            <ChevronLeft size={16} color="#4f46e5" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={scrollRight} style={styles.scrollButton}>
-            <ChevronRight size={16} color="#4f46e5" />
+          <TouchableOpacity style={styles.notificationButton}>
+            <Bell size={20} color="#475569" />
+            <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
-      </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        style={styles.offersScroll}
-        contentContainerStyle={styles.offersContainer}>
-        {offers?.map((offer, i) => (
-          <OfferCardItem
-            key={i}
-            offer={offer}
-            index={i}
-            onPress={() => {
-              router.push({
-                pathname: '/(customer)/offer-details',
-                params: { offer: JSON.stringify(offer) }
-              });
+        {/* Membership Card */}
+        <View>
+          <TouchableOpacity onPress={onOpenWallet} style={styles.membershipCard}>
+            <View style={styles.cardGradient}>
+              {/* Background Pattern */}
+              <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 20 }]}>
+                <Crown
+                  size={240}
+                  color="#ffffff"
+                  style={{ position: 'absolute', right: -60, bottom: -60, opacity: 0.04, transform: [{ rotate: '-20deg' }] }}
+                />
+                <View style={{ position: 'absolute', top: -100, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: '#ffffff', opacity: 0.02 }} />
+              </View>
+
+              <View style={styles.cardHeader}>
+                <View style={styles.memberBadge}>
+                  <Crown size={14} color="#fbbf24" fill="#fbbf24" />
+                  <Text style={styles.memberText}>Gold Member</Text>
+                </View>
+                <View style={styles.qrIcon}>
+                  <QrCode size={20} color="#ffffff" />
+                </View>
+              </View>
+
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginVertical: 12 }}>
+                <Text style={{ color: '#94a3b8', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, textAlign: 'center' }}>
+                  Available Balance
+                </Text>
+                <Text style={{ fontSize: 48, fontWeight: '900', color: '#ffffff', letterSpacing: -1, textAlign: 'center' }}>
+                  {balance.toLocaleString()}
+                  <Text style={{ fontSize: 20, color: '#fbbf24', fontWeight: '700' }}> dandan</Text>
+                </Text>
+              </View>
+
+              <View style={styles.progressSection}>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressLabel}>Next: Platinum</Text>
+                  <Text style={styles.progressPercentage}>75%</Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: '75%' }]} />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, opacity: 0.5 }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>ID: 8839201</Text>
+                  <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>09/28</Text>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          {[
+            { icon: QrCode, label: 'Pay', color: '#eef2ff', iconColor: '#4f46e5', action: onScan },
+            { icon: Gift, label: 'Rewards', color: '#faf5ff', iconColor: '#9333ea', action: () => router.push('/customer-screens/rewards') },
+            { icon: MapPin, label: 'Nearby', color: '#ecfdf5', iconColor: '#059669', action: () => router.push('/customer-screens/nearby') },
+            { icon: Trophy, label: 'Games', color: '#fffbeb', iconColor: '#d97706', action: scrollToGames },
+          ].map((item, idx) => {
+            const IconComponent = item.icon;
+            return (
+              <TouchableOpacity
+                key={idx}
+                onPress={item.action}
+                style={styles.actionButton}>
+                <View style={[styles.actionIcon, { backgroundColor: item.color }]}>
+                  <IconComponent size={24} color={item.iconColor} />
+                </View>
+                <Text style={styles.actionLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Offers Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>For You</Text>
+          <View style={styles.scrollButtons}>
+            <TouchableOpacity onPress={scrollLeft} style={styles.scrollButton}>
+              <ChevronLeft size={16} color="#4f46e5" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={scrollRight} style={styles.scrollButton}>
+              <ChevronRight size={16} color="#4f46e5" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          style={styles.offersScroll}
+          contentContainerStyle={styles.offersContainer}>
+          {offers?.map((offer, i) => (
+            <OfferCardItem
+              key={i}
+              offer={offer}
+              index={i}
+              onPress={() => {
+                router.push({
+                  pathname: '/(customer)/offer-details',
+                  params: { offer: JSON.stringify(offer) }
+                });
+              }}
+            />
+          ))}
+        </ScrollView>
+
+        {/* Daily Quests */}
+        <View>
+          <Text
+            onLayout={(event) => {
+              const layout = event.nativeEvent.layout;
+              setGamesSectionY(layout.y);
             }}
-          />
-        ))}
-      </ScrollView>
+            style={[styles.sectionTitle, styles.questsTitle]}
+          >
+            Daily Quests
+          </Text>
+        </View>
 
-      {/* Daily Quests */}
-      <View>
-        <Text
-          onLayout={(event) => {
-            const layout = event.nativeEvent.layout;
-            setGamesSectionY(layout.y);
-          }}
-          style={[styles.sectionTitle, styles.questsTitle]}
-        >
-          Daily Quests
-        </Text>
-      </View>
-
-      <View style={styles.questsList}>
-        {wheelProgram && (
-          <Card style={styles.questCard}>
-            <View style={styles.questIcon}>
-              <RefreshCw size={28} color="#d97706" />
-            </View>
-            <View style={styles.questInfo}>
-              <Text style={styles.questName}>{wheelProgram.name}</Text>
-              <Text style={styles.questStatus}>
-                {dailySpinUsed ? 'Come back tomorrow' : '1 Free daily attempt left'}
-              </Text>
-            </View>
-            <Button
-              variant="primary"
-              onPress={() => !dailySpinUsed && setShowWheel(true)}
-              disabled={dailySpinUsed}
-              style={[styles.questButton, dailySpinUsed && styles.questButtonDisabled]}>
-              <Text style={styles.questButtonText}>
-                {dailySpinUsed ? 'Done' : 'Play'}
-              </Text>
-            </Button>
-          </Card>
-        )}
-
-        {scratchProgram && (
-          <Card style={styles.questCard}>
-            <View style={[styles.questIcon, { backgroundColor: '#fff1f2' }]}>
-              <Eraser size={28} color="#e11d48" />
-            </View>
-            <View style={styles.questInfo}>
-              <Text style={styles.questName}>{scratchProgram.name}</Text>
-              <Text style={styles.questStatus}>
-                {dailyScratchUsed ? 'Come back tomorrow' : 'Scratch & reveal prize'}
-              </Text>
-            </View>
-            <Button
-              variant="primary"
-              onPress={() => !dailyScratchUsed && setShowScratch(true)}
-              disabled={dailyScratchUsed}
-              style={[styles.questButton, dailyScratchUsed && styles.questButtonDisabled]}>
-              <Text style={styles.questButtonText}>
-                {dailyScratchUsed ? 'Done' : 'Play'}
-              </Text>
-            </Button>
-          </Card>
-        )}
-
-        {stampsProgram && (
-          <Card style={styles.questCard}>
-            <View style={[styles.questIcon, { backgroundColor: '#ecfdf5' }]}>
-              <Coffee size={28} color="#059669" />
-            </View>
-            <View style={styles.questInfo}>
-              <Text style={styles.questName}>{stampsProgram.name}</Text>
-              <Text style={styles.questStatus}>6/10 Stamps Collected</Text>
-            </View>
-            <Button
-              variant="primary"
-              onPress={() => setShowStamps(true)}
-              style={[styles.questButton, { backgroundColor: '#059669' }]}>
-              <Text style={styles.questButtonText}>View</Text>
-            </Button>
-          </Card>
-        )}
-
-        {dailyQuests?.map((quest) => {
-          const IconComp = iconMap[quest.icon] || Trophy;
-          return (
-            <Card key={quest.id} style={[styles.questCard, quest.completed && { opacity: 0.7, borderColor: '#ecfdf5' }]}>
-              <View style={[styles.questIcon, quest.completed && { backgroundColor: '#d1fae5' }]}>
-                {quest.completed ? <CheckCircle size={24} color="#059669" /> : <IconComp size={24} color="#0f172a" />}
+        <View style={styles.questsList}>
+          {wheelProgram && (
+            <Card style={styles.questCard}>
+              <View style={styles.questIcon}>
+                <RefreshCw size={28} color="#d97706" />
               </View>
               <View style={styles.questInfo}>
-                <Text style={styles.questName}>{quest.title}</Text>
-                <Text style={styles.questStatus}>{quest.desc}</Text>
+                <Text style={styles.questName}>{wheelProgram.name}</Text>
+                <Text style={styles.questStatus}>
+                  {dailySpinUsed ? 'Come back tomorrow' : '1 Free daily attempt left'}
+                </Text>
               </View>
-              <View style={styles.questPointsBadge}>
-                <Text style={styles.questPointsText}>+{quest.points} pts</Text>
-              </View>
+              <Button
+                variant="primary"
+                onPress={() => !dailySpinUsed && setShowWheel(true)}
+                disabled={dailySpinUsed}
+                style={[styles.questButton, dailySpinUsed && styles.questButtonDisabled]}>
+                <Text style={styles.questButtonText}>
+                  {dailySpinUsed ? 'Done' : 'Play'}
+                </Text>
+              </Button>
             </Card>
-          );
-        })}
+          )}
 
-        {!wheelProgram && !scratchProgram && !stampsProgram && (!dailyQuests || dailyQuests.length === 0) && (
-          <Card style={styles.emptyQuestCard}>
-            <Text style={styles.emptyQuestText}>No active games right now.</Text>
-          </Card>
-        )}
-      </View>
+          {scratchProgram && (
+            <Card style={styles.questCard}>
+              <View style={[styles.questIcon, { backgroundColor: '#fff1f2' }]}>
+                <Eraser size={28} color="#e11d48" />
+              </View>
+              <View style={styles.questInfo}>
+                <Text style={styles.questName}>{scratchProgram.name}</Text>
+                <Text style={styles.questStatus}>
+                  {dailyScratchUsed ? 'Come back tomorrow' : 'Scratch & reveal prize'}
+                </Text>
+              </View>
+              <Button
+                variant="primary"
+                onPress={() => !dailyScratchUsed && setShowScratch(true)}
+                disabled={dailyScratchUsed}
+                style={[styles.questButton, dailyScratchUsed && styles.questButtonDisabled]}>
+                <Text style={styles.questButtonText}>
+                  {dailyScratchUsed ? 'Done' : 'Play'}
+                </Text>
+              </Button>
+            </Card>
+          )}
 
+          {stampsProgram && (
+            <Card style={styles.questCard}>
+              <View style={[styles.questIcon, { backgroundColor: '#ecfdf5' }]}>
+                <Coffee size={28} color="#059669" />
+              </View>
+              <View style={styles.questInfo}>
+                <Text style={styles.questName}>{stampsProgram.name}</Text>
+                <Text style={styles.questStatus}>6/10 Stamps Collected</Text>
+              </View>
+              <Button
+                variant="primary"
+                onPress={() => setShowStamps(true)}
+                style={[styles.questButton, { backgroundColor: '#059669' }]}>
+                <Text style={styles.questButtonText}>View</Text>
+              </Button>
+            </Card>
+          )}
+
+          {dailyQuests?.map((quest) => {
+            const IconComp = iconMap[quest.icon] || Trophy;
+            return (
+              <Card key={quest.id} style={[styles.questCard, quest.completed && { opacity: 0.7, borderColor: '#ecfdf5' }]}>
+                <View style={[styles.questIcon, quest.completed && { backgroundColor: '#d1fae5' }]}>
+                  {quest.completed ? <CheckCircle size={24} color="#059669" /> : <IconComp size={24} color="#0f172a" />}
+                </View>
+                <View style={styles.questInfo}>
+                  <Text style={styles.questName}>{quest.title}</Text>
+                  <Text style={styles.questStatus}>{quest.desc}</Text>
+                </View>
+                <View style={styles.questPointsBadge}>
+                  <Text style={styles.questPointsText}>+{quest.points} pts</Text>
+                </View>
+              </Card>
+            );
+          })}
+
+          {!wheelProgram && !scratchProgram && !stampsProgram && (!dailyQuests || dailyQuests.length === 0) && (
+            <Card style={styles.emptyQuestCard}>
+              <Text style={styles.emptyQuestText}>No active games right now.</Text>
+            </Card>
+          )}
+        </View>
+
+
+      </ScreenWrapper>
 
       {/* Game Modals */}
       {showWheel && wheelProgram && (
@@ -472,7 +475,7 @@ const CustomerHome = ({
           program={stampsProgram}
         />
       )}
-    </ScreenWrapper>
+    </View>
   );
 };
 
