@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../components/old_app/common/Button';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 
 
@@ -108,108 +108,111 @@ const OfferDetails = ({
       useSafeAreaTop={false}
       useSafeAreaBottom={false}
       paddingHorizontal={0}
-      backgroundColor="#000000">
-      {/* Compact Hero */}
-      <View style={styles.hero}>
-        <Image source={{ uri: offer.image }} style={styles.heroImage} />
-        <View style={styles.heroOverlay} />
+      backgroundColor="#000000"
+      style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+        style={{ flex: 1 }}
+        bounces={false}
+      >
+        {/* Compact Hero */}
+        <View style={styles.hero}>
+          <Image source={{ uri: offer.image }} style={styles.heroImage} />
+          <View style={styles.heroOverlay} />
 
-        <TouchableOpacity onPress={onBack} style={[styles.backButton, { top: insets.top + 16 }]}>
-          <ArrowLeft size={20} color="#ffffff" />
-        </TouchableOpacity>
-
-        <View style={styles.heroContent}>
-          {isBundle && (
-            <View style={styles.bundleTag}>
-              <Text style={styles.bundleTagText}>BUNDLE SAVE</Text>
-            </View>
-          )}
-          <Text style={styles.heroTitle}>{offer.title}</Text>
-          {/* <Text style={styles.heroPrice}>{displayPrice}</Text> */}
+          <View style={styles.heroContent}>
+            {isBundle && (
+              <View style={styles.bundleTag}>
+                <Text style={styles.bundleTagText}>BUNDLE SAVE</Text>
+              </View>
+            )}
+            <Text style={styles.heroTitle}>{offer.title}</Text>
+          </View>
         </View>
-      </View>
 
-      {/* Elegant Content Sheet */}
-      <View style={styles.sheetContainer}>
-        <ScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <View style={styles.storeHeader}>
-            <Text style={styles.storeName}>{offer.desc}</Text>
-            <View style={styles.ratingBadge}>
-              <Text style={styles.ratingText}>★ 4.8</Text>
+        {/* Elegant Content Sheet */}
+        <View style={styles.sheetContainer}>
+          <View style={styles.scrollContent}>
+            <View style={styles.storeHeader}>
+              <Text style={styles.storeName}>{offer.desc}</Text>
+              <View style={styles.ratingBadge}>
+                <Text style={styles.ratingText}>★ 4.8</Text>
+              </View>
             </View>
-          </View>
 
-          <Text style={styles.sectionHeader}>Featured Offer</Text>
-          <View style={styles.menuItem}>
-            <Image source={{ uri: offer.image }} style={styles.menuItemImage} />
-            <View style={styles.menuItemInfo}>
-              <Text style={styles.menuItemTitle}>{offer.title}</Text>
-              <Text style={styles.menuItemPrice}>${(offer.price || 0).toFixed(2)}</Text>
-            </View>
-            <View style={styles.menuItemAction}>
-              {cart[offer.id] > 0 ? (
-                <View style={styles.smallQtyControl}>
-                  <TouchableOpacity onPress={() => updateQuantity(offer.id, -1)} style={styles.smallQtyBtn}><Minus size={14} color="#0f172a" /></TouchableOpacity>
-                  <Text style={styles.smallQtyValue}>{cart[offer.id]}</Text>
-                  <TouchableOpacity onPress={() => updateQuantity(offer.id, 1)} style={styles.smallQtyBtn}><Plus size={14} color="#0f172a" /></TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity onPress={() => updateQuantity(offer.id, 1)} style={styles.addButton}>
-                  <Plus size={16} color="#ffffff" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.sectionHeader}>Store Menu</Text>
-          {menu.map((item) => (
-            <View key={item.id} style={styles.menuItem}>
-              <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+            <Text style={styles.sectionHeader}>Featured Offer</Text>
+            <View style={styles.menuItem}>
+              <Image source={{ uri: offer.image }} style={styles.menuItemImage} />
               <View style={styles.menuItemInfo}>
-                <Text style={styles.menuItemTitle}>{item.title}</Text>
-                <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
+                <Text style={styles.menuItemTitle}>{offer.title}</Text>
+                <Text style={styles.menuItemPrice}>${(offer.price || 0).toFixed(2)}</Text>
               </View>
               <View style={styles.menuItemAction}>
-                {(cart[item.id] || 0) > 0 ? (
+                {cart[offer.id] > 0 ? (
                   <View style={styles.smallQtyControl}>
-                    <TouchableOpacity onPress={() => updateQuantity(item.id, -1)} style={styles.smallQtyBtn}><Minus size={14} color="#0f172a" /></TouchableOpacity>
-                    <Text style={styles.smallQtyValue}>{cart[item.id]}</Text>
-                    <TouchableOpacity onPress={() => updateQuantity(item.id, 1)} style={styles.smallQtyBtn}><Plus size={14} color="#0f172a" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => updateQuantity(offer.id, -1)} style={styles.smallQtyBtn}><Minus size={14} color="#0f172a" /></TouchableOpacity>
+                    <Text style={styles.smallQtyValue}>{cart[offer.id]}</Text>
+                    <TouchableOpacity onPress={() => updateQuantity(offer.id, 1)} style={styles.smallQtyBtn}><Plus size={14} color="#0f172a" /></TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity onPress={() => updateQuantity(item.id, 1)} style={styles.addButton}>
+                  <TouchableOpacity onPress={() => updateQuantity(offer.id, 1)} style={styles.addButton}>
                     <Plus size={16} color="#ffffff" />
                   </TouchableOpacity>
                 )}
               </View>
             </View>
-          ))}
-        </ScrollView>
 
-        {/* Compact & Elegant Footer */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.checkoutBtn, totalItemsCount === 0 && { opacity: 0.5 }]}
-            onPress={handleCheckout}
-            disabled={totalItemsCount === 0}
-          >
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{totalItemsCount}</Text>
-            </View>
-            <Text style={styles.checkoutLabel}>
-              Checkout - {displayTotal}
-            </Text>
-            <View style={styles.checkoutIcon}>
-              <ShoppingBag size={16} color="#ffffff" />
-            </View>
-          </TouchableOpacity>
+            <View style={styles.divider} />
+
+            <Text style={styles.sectionHeader}>Store Menu</Text>
+            {menu.map((item) => (
+              <View key={item.id} style={styles.menuItem}>
+                <Image source={{ uri: item.image }} style={styles.menuItemImage} />
+                <View style={styles.menuItemInfo}>
+                  <Text style={styles.menuItemTitle}>{item.title}</Text>
+                  <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
+                </View>
+                <View style={styles.menuItemAction}>
+                  {(cart[item.id] || 0) > 0 ? (
+                    <View style={styles.smallQtyControl}>
+                      <TouchableOpacity onPress={() => updateQuantity(item.id, -1)} style={styles.smallQtyBtn}><Minus size={14} color="#0f172a" /></TouchableOpacity>
+                      <Text style={styles.smallQtyValue}>{cart[item.id]}</Text>
+                      <TouchableOpacity onPress={() => updateQuantity(item.id, 1)} style={styles.smallQtyBtn}><Plus size={14} color="#0f172a" /></TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity onPress={() => updateQuantity(item.id, 1)} style={styles.addButton}>
+                      <Plus size={16} color="#ffffff" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
+      </ScrollView>
+
+      <TouchableOpacity onPress={onBack} style={[styles.backButton, { top: insets.top + 16 }]}>
+        <ArrowLeft size={20} color="#ffffff" />
+      </TouchableOpacity>
+
+      {/* Compact & Elegant Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.checkoutBtn, totalItemsCount === 0 && { opacity: 0.5 }]}
+          onPress={handleCheckout}
+          disabled={totalItemsCount === 0}
+        >
+          <View style={styles.cartBadge}>
+            <Text style={styles.cartBadgeText}>{totalItemsCount}</Text>
+          </View>
+          <Text style={styles.checkoutLabel}>
+            Checkout - {displayTotal}
+          </Text>
+          <View style={styles.checkoutIcon}>
+            <ShoppingBag size={16} color="#ffffff" />
+          </View>
+        </TouchableOpacity>
       </View>
     </ScreenWrapper>
   );
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000', // Dark background for contrast behind sheet
   },
   hero: {
-    height: '45%', // Reduced height
+    height: height * 0.45,
     position: 'relative',
   },
   heroImage: {
