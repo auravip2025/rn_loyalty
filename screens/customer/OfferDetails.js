@@ -1,9 +1,7 @@
 import {
   ArrowLeft,
-  CheckCircle,
   Minus,
   Plus,
-  QrCode,
   ShoppingBag
 } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -17,7 +15,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Button from '../../components/old_app/common/Button';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const { width, height } = Dimensions.get('window');
@@ -36,7 +33,6 @@ const OfferDetails = ({
   onCheckout,
 }) => {
   const insets = useSafeAreaInsets();
-  const [showQr, setShowQr] = useState(false);
 
   const [cart, setCart] = useState({
     [offer.id]: 1
@@ -63,45 +59,18 @@ const OfferDetails = ({
 
   const handleCheckout = () => {
     if (totalItemsCount > 0) {
-      setShowQr(true);
+      const items = [];
+      if (cart[offer.id] > 0) {
+        items.push({ id: offer.id, title: offer.title, quantity: cart[offer.id], price: offer.price || 0 });
+      }
+      menu.forEach(item => {
+        if (cart[item.id] > 0) {
+          items.push({ id: item.id, title: item.title, quantity: cart[item.id], price: item.price });
+        }
+      });
+      onCheckout(items, cartTotal, offer.desc);
     }
   };
-
-  if (showQr) {
-    return (
-      <ScreenWrapper
-        useSafeAreaTop={true} // QR view should have safe area
-        useSafeAreaBottom={true}
-        backgroundColor="#f8fafc"
-        paddingHorizontal={0}
-        style={styles.qrContainer}>
-        <TouchableOpacity onPress={() => setShowQr(false)} style={styles.closeButton}>
-          <ArrowLeft size={24} color="#0f172a" />
-        </TouchableOpacity>
-
-        <View style={styles.qrCard}>
-          <View style={styles.successIcon}>
-            <CheckCircle size={48} color="#10b981" />
-          </View>
-          <Text style={styles.qrTitle}>Payment Successful!</Text>
-          <Text style={styles.qrSubtitle}>Show this QR code to the merchant to collect your item.</Text>
-          <View style={styles.qrCodeBox}>
-            <QrCode size={200} color="#0f172a" />
-          </View>
-          <Text style={styles.orderId}>Order #{Math.floor(Math.random() * 90000) + 10000}</Text>
-          <View style={styles.itemSummary}>
-            {cart[offer.id] > 0 && <Text style={styles.itemTitle}>{cart[offer.id]}x {offer.title}</Text>}
-            {menu.map(item => cart[item.id] > 0 && <Text key={item.id} style={styles.itemTitle}>{cart[item.id]}x {item.title}</Text>)}
-            <Text style={styles.itemTotal}>Total: {displayTotal}</Text>
-          </View>
-        </View>
-
-        <Button variant="primary" onPress={() => onCheckout(cartTotal)} style={styles.doneButton}>
-          Done
-        </Button>
-      </ScreenWrapper>
-    );
-  }
 
   return (
     <ScreenWrapper
@@ -489,85 +458,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  qrContainer: {
-    padding: 24,
-    backgroundColor: '#f8fafc',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    left: 24,
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-  },
-  qrCard: {
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 32,
-    padding: 32,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.1,
-    shadowRadius: 32,
-    elevation: 12,
-    marginBottom: 32,
-  },
-  successIcon: {
-    marginBottom: 16,
-  },
-  qrTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  qrSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  qrCodeBox: {
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#0f172a',
-    borderRadius: 16,
-    marginBottom: 24,
-  },
-  orderId: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#94a3b8',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-  },
-  itemSummary: {
-    width: '100%',
-    padding: 16,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  itemTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  itemTotal: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  doneButton: {
-    width: '100%',
   },
 });
 

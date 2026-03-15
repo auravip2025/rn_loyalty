@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Store,
   Sun,
+  UserCog,
 } from 'lucide-react-native';
 import React from 'react';
 import {
@@ -18,9 +19,27 @@ import {
 } from 'react-native';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
+import { useAuth } from '../../contexts/AuthContext';
 
-const MerchantSettings = ({ onLogout, onToggleTheme, isDark }) => {
+const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) => {
+  const { onboardingStatus } = useAuth();
+
+  const statusLabel = onboardingStatus === 'approved' ? 'Verified ✓'
+    : onboardingStatus === 'under_review' ? 'Under Review'
+      : 'Setup Pending';
+  const statusColor = onboardingStatus === 'approved' ? '#10b981'
+    : onboardingStatus === 'under_review' ? '#f59e0b'
+      : '#94a3b8';
+
   const settings = [
+    {
+      id: 0,
+      title: 'Edit Profile',
+      subtitle: 'Business info, hours, social',
+      icon: UserCog,
+      right: <ChevronRight size={16} color="#94a3b8" />,
+      onPress: onEditProfile,
+    },
     {
       id: 1,
       title: 'Notifications',
@@ -47,7 +66,6 @@ const MerchantSettings = ({ onLogout, onToggleTheme, isDark }) => {
   return (
     <ScrollView
       style={[styles.container, isDark && styles.containerDark]}
-      showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}>
 
       <View style={styles.profileSection}>
@@ -56,11 +74,14 @@ const MerchantSettings = ({ onLogout, onToggleTheme, isDark }) => {
         </View>
         <Text style={[styles.merchantName, isDark && styles.textDark]}>The Coffee House</Text>
         <Text style={styles.merchantId}>Merchant ID: #88392</Text>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
+          <Text style={[styles.statusBadgeText, { color: statusColor }]}>{statusLabel}</Text>
+        </View>
       </View>
 
       <View style={styles.settingsList}>
         {settings.map((item) => (
-          <Card key={item.id} style={styles.settingCard}>
+          <Card key={item.id} style={styles.settingCard} onPress={item.onPress}>
             <View style={styles.settingLeft}>
               <View style={styles.settingIcon}>
                 <item.icon size={20} color="#475569" />
@@ -172,6 +193,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 4,
+  },
+  statusBadge: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   toggle: {
     width: 40,

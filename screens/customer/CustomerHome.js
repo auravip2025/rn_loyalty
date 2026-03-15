@@ -2,21 +2,16 @@ import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import {
   Bell,
-  CheckCircle,
   ChevronLeft,
   ChevronRight,
-  Coffee,
   Crown,
-  Eraser,
   Gift,
   MapPin,
-  QrCode,
-  RefreshCw,
   Trophy,
-  UserPlus,
 } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
+  Alert,
   Image,
   Platform,
   ScrollView,
@@ -34,21 +29,7 @@ import Animated, {
   withSequence,
   withTiming
 } from 'react-native-reanimated';
-import Button from '../../components/old_app/common/Button';
-import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
-import ScratchCardGame from '../../components/old_app/games/ScratchCardGame';
-import SpinWheelGame from '../../components/old_app/games/SpinWheelGame';
-import StampCardModal from '../../components/old_app/games/StampCardModal';
-
-const iconMap = {
-  RefreshCw,
-  MapPin,
-  Coffee,
-  UserPlus,
-  Trophy,
-  Star: Crown, // fallback icon
-};
 
 const OfferCardItem = ({ offer, index, onPress }) => {
   const translateX = useSharedValue(200);
@@ -157,36 +138,15 @@ const Shimmer = ({ width = 160, duration = 2000, delay = 0 }) => {
 };
 
 const CustomerHome = ({
-  programs,
-  dailyQuests,
   offers,
   balance,
   onOpenWallet,
   onScan,
-  dailySpinUsed,
-  setDailySpinUsed,
-  setActiveCoupon,
-  dailyScratchUsed,
-  setDailyScratchUsed,
-  handleCheckout,
 }) => {
-  const [showWheel, setShowWheel] = useState(false);
-  const [showScratch, setShowScratch] = useState(false);
-  const [showStamps, setShowStamps] = useState(false);
   const router = useRouter();
-
-
-  const wheelProgram = programs.find(p => p.name === 'Wheel of Fortune' && p.active);
-  const scratchProgram = programs.find(p => p.name === 'Scratch & Win' && p.active);
-  const stampsProgram = programs.find(p => p.name === 'Digital Stamps' && p.active);
 
   const scrollViewRef = useRef(null);
   const mainScrollViewRef = useRef(null);
-  const [gamesSectionY, setGamesSectionY] = useState(0);
-
-  const scrollToGames = () => {
-    mainScrollViewRef.current?.scrollToEnd({ animated: true });
-  };
 
   const scrollX = useRef(0);
 
@@ -205,17 +165,6 @@ const CustomerHome = ({
   const handleScroll = (event) => {
     scrollX.current = event.nativeEvent.contentOffset.x;
   };
-
-  const handleWin = (prize, type) => {
-    if (type === 'wheel') setDailySpinUsed(true);
-    if (type === 'scratch') setDailyScratchUsed(true);
-
-    if (prize.type === 'discount') {
-      setActiveCoupon(prize);
-    }
-  };
-
-
 
   return (
     <View style={{ flex: 1 }}>
@@ -255,9 +204,6 @@ const CustomerHome = ({
                   <Crown size={14} color="#fbbf24" fill="#fbbf24" />
                   <Text style={styles.memberText}>Gold Member</Text>
                 </View>
-                <View style={styles.qrIcon}>
-                  <QrCode size={20} color="#ffffff" />
-                </View>
               </View>
 
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginVertical: 12 }}>
@@ -290,10 +236,9 @@ const CustomerHome = ({
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           {[
-            { icon: QrCode, label: 'Pay', color: '#eef2ff', iconColor: '#4f46e5', action: onScan },
-            { icon: Gift, label: 'Rewards', color: '#faf5ff', iconColor: '#9333ea', action: () => router.push('/customer-screens/rewards') },
-            { icon: MapPin, label: 'Nearby', color: '#ecfdf5', iconColor: '#059669', action: () => router.push('/customer-screens/nearby') },
-            { icon: Trophy, label: 'Games', color: '#fffbeb', iconColor: '#d97706', action: scrollToGames },
+            { icon: Gift, label: 'Rewards', color: '#faf5ff', iconColor: '#9333ea', action: () => router.push('/(customer)/rewards') },
+            { icon: MapPin, label: 'Nearby', color: '#ecfdf5', iconColor: '#059669', action: () => router.push('/(customer)/nearby') },
+            { icon: Trophy, label: 'Games', color: '#fffbeb', iconColor: '#d97706', action: () => router.push('/(customer)/games') },
           ].map((item, idx) => {
             const IconComponent = item.icon;
             return (
@@ -346,135 +291,8 @@ const CustomerHome = ({
           ))}
         </ScrollView>
 
-        {/* Daily Quests */}
-        <View>
-          <Text
-            onLayout={(event) => {
-              const layout = event.nativeEvent.layout;
-              setGamesSectionY(layout.y);
-            }}
-            style={[styles.sectionTitle, styles.questsTitle]}
-          >
-            Daily Quests
-          </Text>
-        </View>
-
-        <View style={styles.questsList}>
-          {wheelProgram && (
-            <Card style={styles.questCard}>
-              <View style={styles.questIcon}>
-                <RefreshCw size={28} color="#d97706" />
-              </View>
-              <View style={styles.questInfo}>
-                <Text style={styles.questName}>{wheelProgram.name}</Text>
-                <Text style={styles.questStatus}>
-                  {dailySpinUsed ? 'Come back tomorrow' : '1 Free daily attempt left'}
-                </Text>
-              </View>
-              <Button
-                variant="primary"
-                onPress={() => !dailySpinUsed && setShowWheel(true)}
-                disabled={dailySpinUsed}
-                style={[styles.questButton, dailySpinUsed && styles.questButtonDisabled]}>
-                <Text style={styles.questButtonText}>
-                  {dailySpinUsed ? 'Done' : 'Play'}
-                </Text>
-              </Button>
-            </Card>
-          )}
-
-          {scratchProgram && (
-            <Card style={styles.questCard}>
-              <View style={[styles.questIcon, { backgroundColor: '#fff1f2' }]}>
-                <Eraser size={28} color="#e11d48" />
-              </View>
-              <View style={styles.questInfo}>
-                <Text style={styles.questName}>{scratchProgram.name}</Text>
-                <Text style={styles.questStatus}>
-                  {dailyScratchUsed ? 'Come back tomorrow' : 'Scratch & reveal prize'}
-                </Text>
-              </View>
-              <Button
-                variant="primary"
-                onPress={() => !dailyScratchUsed && setShowScratch(true)}
-                disabled={dailyScratchUsed}
-                style={[styles.questButton, dailyScratchUsed && styles.questButtonDisabled]}>
-                <Text style={styles.questButtonText}>
-                  {dailyScratchUsed ? 'Done' : 'Play'}
-                </Text>
-              </Button>
-            </Card>
-          )}
-
-          {stampsProgram && (
-            <Card style={styles.questCard}>
-              <View style={[styles.questIcon, { backgroundColor: '#ecfdf5' }]}>
-                <Coffee size={28} color="#059669" />
-              </View>
-              <View style={styles.questInfo}>
-                <Text style={styles.questName}>{stampsProgram.name}</Text>
-                <Text style={styles.questStatus}>6/10 Stamps Collected</Text>
-              </View>
-              <Button
-                variant="primary"
-                onPress={() => setShowStamps(true)}
-                style={[styles.questButton, { backgroundColor: '#059669' }]}>
-                <Text style={styles.questButtonText}>View</Text>
-              </Button>
-            </Card>
-          )}
-
-          {dailyQuests?.map((quest) => {
-            const IconComp = iconMap[quest.icon] || Trophy;
-            return (
-              <Card key={quest.id} style={[styles.questCard, quest.completed && { opacity: 0.7, borderColor: '#ecfdf5' }]}>
-                <View style={[styles.questIcon, quest.completed && { backgroundColor: '#d1fae5' }]}>
-                  {quest.completed ? <CheckCircle size={24} color="#059669" /> : <IconComp size={24} color="#0f172a" />}
-                </View>
-                <View style={styles.questInfo}>
-                  <Text style={styles.questName}>{quest.title}</Text>
-                  <Text style={styles.questStatus}>{quest.desc}</Text>
-                </View>
-                <View style={styles.questPointsBadge}>
-                  <Text style={styles.questPointsText}>+{quest.points} pts</Text>
-                </View>
-              </Card>
-            );
-          })}
-
-          {!wheelProgram && !scratchProgram && !stampsProgram && (!dailyQuests || dailyQuests.length === 0) && (
-            <Card style={styles.emptyQuestCard}>
-              <Text style={styles.emptyQuestText}>No active games right now.</Text>
-            </Card>
-          )}
-        </View>
-
 
       </ScreenWrapper>
-
-      {/* Game Modals */}
-      {showWheel && wheelProgram && (
-        <SpinWheelGame
-          onClose={() => setShowWheel(false)}
-          segments={wheelProgram.segments}
-          onWin={(prize) => handleWin(prize, 'wheel')}
-        />
-      )}
-
-      {showScratch && scratchProgram && (
-        <ScratchCardGame
-          onClose={() => setShowScratch(false)}
-          outcomes={scratchProgram.segments}
-          onWin={(prize) => handleWin(prize, 'scratch')}
-        />
-      )}
-
-      {showStamps && stampsProgram && (
-        <StampCardModal
-          onClose={() => setShowStamps(false)}
-          program={stampsProgram}
-        />
-      )}
     </View>
   );
 };
@@ -709,75 +527,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 3,
   },
-  questsTitle: {
-    marginBottom: 16,
-  },
-  questsList: {
-    gap: 12,
-  },
-  questCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    borderWidth: 2,
-    borderColor: '#fef3c7',
-  },
-  questIcon: {
-    width: 56,
-    height: 56,
-    backgroundColor: '#fffbeb',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questInfo: {
-    flex: 1,
-  },
-  questName: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  questStatus: {
-    fontSize: 10,
-    color: '#64748b',
-  },
-  questButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#f59e0b',
-  },
-  questButtonDisabled: {
-    opacity: 0.5,
-  },
-  questButtonText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  emptyQuestCard: {
-    padding: 24,
-    alignItems: 'center',
-    borderStyle: 'dashed',
-    borderWidth: 2,
-  },
-  emptyQuestText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#94a3b8',
-  },
-  questPointsBadge: {
-    backgroundColor: '#fffbeb',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  questPointsText: {
-    color: '#d97706',
-    fontWeight: '900',
-    fontSize: 12,
-  }
 });
 
 export default CustomerHome;

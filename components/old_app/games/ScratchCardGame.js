@@ -19,6 +19,10 @@ const CARD_HEIGHT = 150;
 const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
   const [isRevealed, setIsRevealed] = useState(false);
   const [prize, setPrize] = useState(null);
+  const winFired = React.useRef(false);
+  const prizeRef = React.useRef(null);
+  const onWinRef = React.useRef(onWin);
+  onWinRef.current = onWin;
 
   // Logic state for checking completion
   const scrapedLength = useSharedValue(0);
@@ -30,39 +34,48 @@ const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
 
   useEffect(() => {
     const random = Math.floor(Math.random() * outcomes.length);
-    setPrize(outcomes[random]);
+    const selected = outcomes[random];
+    setPrize(selected);
+    prizeRef.current = selected;
   }, [outcomes]);
 
-  const handleFullReveal = () => {
-    // Fallback for manual button press (still needs to work from JS)
-    if (isRevealed) return;
-    setIsRevealed(true);
-    opacity.value = withTiming(0, { duration: 500 }, (finished) => {
-      if (finished && onWin && prize) {
-        onWin(prize); // Called from JS thread, safe
-      }
-    });
+  const fireWin = () => {
+    if (winFired.current) return;
+    winFired.current = true;
+    const p = prizeRef.current;
+    if (p && onWinRef.current) {
+      onWinRef.current(p);
+    }
   };
 
-  // React to the shared value change on the UI thread
+  const handleFullReveal = () => {
+    if (isRevealed) return;
+    opacity.value = withTiming(0, { duration: 500 });
+    isRevealedSV.value = true;
+    setIsRevealed(true);
+    setTimeout(fireWin, 600);
+  };
+
+  // React to scratch gesture completing on UI thread
   useAnimatedReaction(
     () => isRevealedSV.value,
     (revealed, prev) => {
       if (revealed && !prev) {
-        // 1. Run animation on UI thread
-        opacity.value = withTiming(0, { duration: 500 }, (finished) => {
-          if (finished) {
-            // 2. Call callback on JS thread
-            scheduleOnRN(onWin, prize);
-          }
+        opacity.value = withTiming(0, { duration: 500 });
+        scheduleOnRN(() => {
+          setIsRevealed(true);
         });
-
-        // 3. Update React state
-        scheduleOnRN(setIsRevealed, true);
       }
     },
-    [prize, onWin] // Dependencies to ensure capture
+    []
   );
+
+  // Handle gesture-based reveal firing win on JS thread
+  useEffect(() => {
+    if (isRevealed) {
+      setTimeout(fireWin, 600);
+    }
+  }, [isRevealed]);
 
   const panGesture = Gesture.Pan()
     .onStart((g) => {

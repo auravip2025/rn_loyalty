@@ -29,9 +29,15 @@ export default function OfferDetailsPage() {
             offer={offer}
             storeMenus={storeMenus}
             onBack={() => router.back()}
-            onCheckout={(total: any) => {
-                console.log("Mock Checkout", total);
-                router.back();
+            onCheckout={(items: any[], total: number, merchantName: string) => {
+                router.push({
+                    pathname: '/(customer)/checkout',
+                    params: {
+                        cartItems: JSON.stringify(items),
+                        totalAmount: String(total),
+                        merchantName,
+                    },
+                });
             }}
         />
     );

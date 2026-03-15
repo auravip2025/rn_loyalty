@@ -68,6 +68,30 @@ export default function CustomerLayout() {
                     href: null,
                 }}
             />
+            <Tabs.Screen
+                name="nearby"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="checkout"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="games"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="rewards"
+                options={{
+                    href: null,
+                }}
+            />
         </Tabs>
     );
 }

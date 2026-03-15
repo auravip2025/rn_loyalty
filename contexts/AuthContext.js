@@ -1,15 +1,11 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-// Create context
 const AuthContext = createContext(null);
 
-// Custom hook for using auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
@@ -18,6 +14,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [merchantProfile, setMerchantProfile] = useState(null);
+  // 'none' | 'pending' | 'under_review' | 'approved'
+  const [onboardingStatus, setOnboardingStatus] = useState('none');
 
   useEffect(() => {
     loadStoredAuth();
@@ -27,12 +26,16 @@ export const AuthProvider = ({ children }) => {
     try {
       const storedUser = await AsyncStorage.getItem('@dandan_user');
       const storedRole = await AsyncStorage.getItem('@dandan_role');
+      const storedProfile = await AsyncStorage.getItem('@dandan_merchant_profile');
+      const storedStatus = await AsyncStorage.getItem('@dandan_onboarding_status');
 
       if (storedUser && storedRole) {
         setUser(JSON.parse(storedUser));
         setRole(storedRole);
         setIsAuthenticated(true);
       }
+      if (storedProfile) setMerchantProfile(JSON.parse(storedProfile));
+      if (storedStatus) setOnboardingStatus(storedStatus);
     } catch (error) {
       console.error('Failed to load auth:', error);
     } finally {
@@ -43,20 +46,16 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, selectedRole) => {
     try {
       setLoading(true);
-      // Mock login - replace with actual API call
       const mockUser = {
         id: 1,
         name: selectedRole === 'customer' ? 'Alex Johnson' : 'The Coffee House',
-        email
+        email,
       };
-
       await AsyncStorage.setItem('@dandan_user', JSON.stringify(mockUser));
       await AsyncStorage.setItem('@dandan_role', selectedRole);
-
       setUser(mockUser);
       setRole(selectedRole);
       setIsAuthenticated(true);
-
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -65,11 +64,74 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // OTP-based login (no password required)
+  const loginWithOtp = async (email, selectedRole, isNewUser = false) => {
+    try {
+      setLoading(true);
+      const mockUser = {
+        id: Date.now(),
+        name: selectedRole === 'customer' ? 'Alex Johnson' : 'The Coffee House',
+        email,
+        isNew: isNewUser,
+      };
+      await AsyncStorage.setItem('@dandan_user', JSON.stringify(mockUser));
+      await AsyncStorage.setItem('@dandan_role', selectedRole);
+
+      // New merchants start at 'pending' (needs onboarding)
+      if (selectedRole === 'merchant' && isNewUser) {
+        await AsyncStorage.setItem('@dandan_onboarding_status', 'pending');
+        setOnboardingStatus('pending');
+      }
+
+      setUser(mockUser);
+      setRole(selectedRole);
+      setIsAuthenticated(true);
+      return { success: true, isNew: isNewUser };
+    } catch (error) {
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Save merchant profile (onboarding submission)
+  const saveMerchantProfile = async (profileData) => {
+    try {
+      const profile = { ...profileData, createdAt: new Date().toISOString() };
+      await AsyncStorage.setItem('@dandan_merchant_profile', JSON.stringify(profile));
+      await AsyncStorage.setItem('@dandan_onboarding_status', 'under_review');
+      setMerchantProfile(profile);
+      setOnboardingStatus('under_review');
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Update existing merchant profile
+  const updateMerchantProfile = async (updates) => {
+    try {
+      const updated = { ...merchantProfile, ...updates, updatedAt: new Date().toISOString() };
+      await AsyncStorage.setItem('@dandan_merchant_profile', JSON.stringify(updated));
+      setMerchantProfile(updated);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
   const logout = async () => {
     try {
-      await AsyncStorage.multiRemove(['@dandan_user', '@dandan_role']);
+      await AsyncStorage.multiRemove([
+        '@dandan_user',
+        '@dandan_role',
+        '@dandan_merchant_profile',
+        '@dandan_onboarding_status',
+      ]);
       setUser(null);
       setRole(null);
+      setMerchantProfile(null);
+      setOnboardingStatus('none');
       setIsAuthenticated(false);
     } catch (error) {
       console.error('Logout error:', error);
@@ -81,7 +143,12 @@ export const AuthProvider = ({ children }) => {
     user,
     role,
     loading,
+    merchantProfile,
+    onboardingStatus,
     login,
+    loginWithOtp,
+    saveMerchantProfile,
+    updateMerchantProfile,
     logout,
   };
 

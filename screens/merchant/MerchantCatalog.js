@@ -1,21 +1,21 @@
+import {
+  Award,
+  Gift,
+  Package,
+  Plus,
+  Settings,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
+  View,
 } from 'react-native';
-import {
-  Package,
-  Gift,
-  Award,
-  Settings,
-  Plus,
-} from 'lucide-react-native';
-import Card from '../../components/old_app/common/Card';
-import Button from '../../components/old_app/common/Button';
 import Badge from '../../components/old_app/common/Badge';
+import Button from '../../components/old_app/common/Button';
+import Card from '../../components/old_app/common/Card';
 import RewardConfigEditor from '../../components/old_app/merchant/RewardConfigEditor';
 
 const MerchantCatalog = () => {
@@ -46,7 +46,6 @@ const MerchantCatalog = () => {
   return (
     <ScrollView
       style={styles.container}
-      showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}>
 
       <View style={styles.header}>

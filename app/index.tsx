@@ -5,14 +5,12 @@ import LoginScreen from '../screens/auth/LoginScreen';
 
 export default function Index() {
     const router = useRouter();
-    const { isAuthenticated, role, login } = useAuth();
+    const { isAuthenticated, role, login, onboardingStatus } = useAuth() as any;
 
     const handleLogin = async (selectedRole: string) => {
         try {
-            // Mock login with default credentials
             const response = await login('user@example.com', 'password', selectedRole);
             if (response.success) {
-                // Navigate based on role
                 if (selectedRole === 'customer') {
                     router.replace('/(customer)/home');
                 } else {
@@ -31,11 +29,17 @@ export default function Index() {
         if (isAuthenticated && role) {
             if (role === 'customer') {
                 router.replace('/(customer)/home');
-            } else {
-                router.replace('/(merchant)/dashboard');
+            } else if (role === 'merchant') {
+                // New merchants with pending onboarding go to onboarding wizard
+                if (onboardingStatus === 'pending') {
+                    router.replace('/(merchant)/onboarding');
+                } else {
+                    router.replace('/(merchant)/dashboard');
+                }
             }
         }
-    }, [isAuthenticated, role]);
+    }, [isAuthenticated, role, onboardingStatus]);
 
-    return <LoginScreen onLogin={handleLogin} />;
+    const LoginScreenAny = LoginScreen as any;
+    return <LoginScreenAny onLogin={handleLogin} />;
 }

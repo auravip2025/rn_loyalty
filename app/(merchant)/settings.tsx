@@ -5,7 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import MerchantSettings from '../../screens/merchant/MerchantSettings';
 
 export default function SettingsPage() {
-    const { logout } = useAuth();
+    const { logout } = useAuth() as any;
     const { toggleTheme, isDark } = useTheme();
     const router = useRouter();
 
@@ -14,5 +14,5 @@ export default function SettingsPage() {
         router.replace('/');
     };
 
-    return <MerchantSettings onLogout={handleLogout} onToggleTheme={toggleTheme} isDark={isDark} />;
+    return <MerchantSettings onLogout={handleLogout} onToggleTheme={toggleTheme} isDark={isDark} onEditProfile={() => router.push('/(merchant)/profile')} />;
 }
