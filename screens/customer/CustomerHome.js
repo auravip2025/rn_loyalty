@@ -8,8 +8,13 @@ import {
   Gift,
   MapPin,
   Trophy,
+  Utensils,
+  Shirt,
+  ShoppingBag,
+  Monitor,
+  Scissors,
 } from 'lucide-react-native';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -137,6 +142,66 @@ const Shimmer = ({ width = 160, duration = 2000, delay = 0 }) => {
   );
 };
 
+const CATEGORY_DATA = [
+  { id: 1, name: 'Food', icon: Utensils, color: '#1e293b', iconColor: '#fbbf24', shops: [{name: 'KFC'}, {name: 'McDonalds'}, {name: 'Dominos'}, {name: 'Subway'}] },
+  { id: 2, name: 'Clothing', icon: Shirt, color: '#1e293b', iconColor: '#818cf8', shops: [{name: 'Zara'}, {name: 'H&M'}, {name: 'Nike'}, {name: 'Adidas'}] },
+  { id: 3, name: 'Shopping', icon: ShoppingBag, color: '#1e293b', iconColor: '#f472b6', shops: [{name: 'Amazon'}, {name: 'Target'}, {name: 'Walmart'}] },
+  { id: 4, name: 'Electronics', icon: Monitor, color: '#1e293b', iconColor: '#38bdf8', shops: [{name: 'Apple'}, {name: 'BestBuy'}, {name: 'Sony'}] },
+  { id: 5, name: 'Beauty', icon: Scissors, color: '#1e293b', iconColor: '#e879f9', shops: [{name: 'Sephora'}, {name: 'Ulta'}, {name: 'MAC'}] },
+];
+
+const CategoryAccordionItem = ({ cat, isActive, onPress }) => {
+  const IconComponent = cat.icon;
+  
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      width: withTiming(isActive ? 380 : 80, { duration: 300, easing: Easing.out(Easing.quad) }),
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.categoryAccordionWrapper, animatedStyle, { backgroundColor: cat.color }]}>
+      <View style={styles.tagHole} />
+      <View style={styles.categoryAccordionInner}>
+        <TouchableOpacity 
+          style={styles.categoryMainContent} 
+          onPress={onPress}
+          activeOpacity={0.8}
+        >
+          <View style={styles.categoryIconWrap}>
+            <IconComponent size={24} color={cat.iconColor} />
+          </View>
+          <Text style={[styles.categoryName, { color: cat.iconColor }]} numberOfLines={1}>{cat.name}</Text>
+        </TouchableOpacity>
+        
+        <View style={styles.categoryShopsWrapper}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.shopsScrollContent}
+            scrollEnabled={isActive}
+          >
+            {cat.shops.slice(0, 3).map((shop, i) => (
+              <TouchableOpacity key={i} style={styles.shopItem} disabled={!isActive} activeOpacity={0.7}>
+                <View style={[styles.shopImagePlaceHolder, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                  <Text style={[styles.shopIconText, { color: cat.iconColor }]}>{shop.name.charAt(0)}</Text>
+                </View>
+                <Text style={[styles.shopName, { color: cat.iconColor }]} numberOfLines={1}>{shop.name}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.shopItem} disabled={!isActive} activeOpacity={0.7}>
+              <View style={[styles.shopImagePlaceHolder, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                <ChevronRight size={24} color={cat.iconColor} />
+              </View>
+              <Text style={[styles.shopName, { color: cat.iconColor }]} numberOfLines={1}>More</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
 const CustomerHome = ({
   offers,
   balance,
@@ -144,6 +209,7 @@ const CustomerHome = ({
   onScan,
 }) => {
   const router = useRouter();
+  const [activeCategory, setActiveCategory] = useState(null);
 
   const scrollViewRef = useRef(null);
   const mainScrollViewRef = useRef(null);
@@ -291,6 +357,25 @@ const CustomerHome = ({
           ))}
         </ScrollView>
 
+        {/* Categories Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Categories</Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoriesScroll}
+          contentContainerStyle={styles.categoriesContainer}>
+          {CATEGORY_DATA.map((cat) => (
+            <CategoryAccordionItem
+              key={cat.id}
+              cat={cat}
+              isActive={activeCategory === cat.id}
+              onPress={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+            />
+          ))}
+        </ScrollView>
 
       </ScreenWrapper>
     </View>
@@ -526,6 +611,92 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 3,
+  },
+  categoriesScroll: {
+    marginBottom: 32,
+    marginHorizontal: -24,
+  },
+  categoriesContainer: {
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  categoryAccordionWrapper: {
+    overflow: 'hidden',
+    height: 96, 
+    borderRadius: 24,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderTopRightRadius: 36,
+    borderBottomRightRadius: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  tagHole: {
+    position: 'absolute',
+    left: 8,
+    top: 42, 
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    zIndex: 10,
+  },
+  categoryAccordionInner: {
+    flexDirection: 'row',
+    width: 380, 
+    height: '100%',
+  },
+  categoryMainContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 80,
+    paddingLeft: 12,
+    gap: 6,
+  },
+  categoryIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  categoryName: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  categoryShopsWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingLeft: 4,
+  },
+  shopsScrollContent: {
+    gap: 12,
+    paddingRight: 32,
+    alignItems: 'center',
+  },
+  shopItem: {
+    alignItems: 'center',
+    width: 56,
+    gap: 4,
+  },
+  shopImagePlaceHolder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shopIconText: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  shopName: {
+    fontSize: 10,
+    fontWeight: '700',
   },
 });
 
