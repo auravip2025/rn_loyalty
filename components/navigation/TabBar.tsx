@@ -14,14 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function TabBar({ state, descriptors, navigation, activeTintColor = '#4f46e5' }: BottomTabBarProps & { activeTintColor?: string }) {
     const insets = useSafeAreaInsets();
 
     const activeRoutes = state.routes.filter(route => {
         const { options } = descriptors[route.key];
         // If a route doesn't have a tabBarIcon defined in _layout.tsx, we hide it!
         // This instantly hides offer-details and any automatically injected ghost routes.
-        return options.tabBarIcon !== undefined && route.name !== 'offer-details';
+        return options.tabBarIcon !== undefined && route.name !== 'offer-details' && route.name !== 'checkout';
     });
     const activeRouteIndex = activeRoutes.findIndex(
         route => route.key === state.routes[state.index].key
@@ -61,7 +61,9 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         };
     });
 
-    if (state.routes[state.index].name === 'offer-details') {
+    const currentRoute = state.routes[state.index].name;
+    const hiddenRoutes = ['offer-details', 'checkout', 'games', 'nearby', 'rewards'];
+    if (hiddenRoutes.includes(currentRoute)) {
         return null;
     }
 
@@ -75,6 +77,12 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                     height: INDICATOR_SIZE,
                     borderRadius: INDICATOR_SIZE / 2,
                     top: INDICATOR_TOP,
+                    backgroundColor: activeTintColor,
+                    shadowColor: activeTintColor,
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowRadius: 12,
+                    shadowOpacity: 0.4,
+                    elevation: 8,
                 },
                 animatedIndicatorStyle
             ]} />
@@ -241,13 +249,7 @@ const styles = StyleSheet.create({
     },
     activeIndicator: {
         position: 'absolute',
-        backgroundColor: '#4f46e5',
         left: 0,
-        shadowColor: '#4f46e5',
-        shadowOffset: { width: 0, height: 8 },
-        shadowRadius: 12,
-        shadowOpacity: 0.4,
-        elevation: 8,
     },
     iconContainer: {
         justifyContent: 'center',

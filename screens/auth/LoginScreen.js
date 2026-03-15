@@ -1,74 +1,98 @@
-import React, { useState } from 'react';
+import { ArrowLeft, ArrowRight, LayoutGrid, Mail, Zap } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Zap, LayoutGrid, User, Mail, Lock, ArrowRight } from 'lucide-react-native';
-import Input from '../../components/old_app/common/Input';
 import Button from '../../components/old_app/common/Button';
+import Input from '../../components/old_app/common/Input';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Mock credentials for demo
-const mockCredentials = {
-  customer: {
-    email: 'alex@dandan.io',
-    password: 'password123',
-  },
-  merchant: {
-    email: 'merchant@coffeehouse.com',
-    password: 'merchant123',
-  },
+// Mock OTP for demo
+const MOCK_OTP = '1234';
+
+const MOCK_EMAILS = {
+  customer: 'alex@dandan.io',
+  merchant: 'merchant@coffeehouse.com',
 };
 
 const LoginScreen = () => {
-  const { login } = useAuth();
+  const { loginWithOtp } = useAuth();
   const [activeRole, setActiveRole] = useState('customer');
   const [isNewUser, setIsNewUser] = useState(false);
-  const [email, setEmail] = useState(mockCredentials.customer.email);
-  const [password, setPassword] = useState(mockCredentials.customer.password);
-  const [name, setName] = useState('');
+  const [step, setStep] = useState('email'); // 'email' | 'otp'
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
+
+  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
   const primaryColor = activeRole === 'customer' ? '#4f46e5' : '#10b981';
 
-  const handleSubmit = async () => {
-    performLogin(email, password);
+  // ── Step 1: Send OTP ─────────────────────────────────────────────────────────
+  const handleSendOtp = () => {
+    if (!email.trim()) {
+      Alert.alert('Enter Email', 'Please enter your email address.');
+      return;
+    }
+    // In a real app, call your API here to send OTP
+    console.log(`[OTP] Sending OTP to ${email}`);
+    setStep('otp');
   };
 
-  const performLogin = async (loginEmail, loginPassword) => {
+  // ── Step 2: Verify OTP ───────────────────────────────────────────────────────
+  const handleVerifyOtp = async () => {
+    const entered = otp.join('');
+    if (entered.length < 4) {
+      Alert.alert('Incomplete OTP', 'Please enter the 4-digit code sent to your email.');
+      return;
+    }
+    if (entered !== MOCK_OTP) {
+      Alert.alert('Invalid OTP', `For demo, use: ${MOCK_OTP}`);
+      return;
+    }
     setLoading(true);
     try {
-      // Mock validation - in real app, this would be an API call
-      const isValid =
-        (loginEmail === mockCredentials.customer.email &&
-          loginPassword === mockCredentials.customer.password &&
-          activeRole === 'customer') ||
-        (loginEmail === mockCredentials.merchant.email &&
-          loginPassword === mockCredentials.merchant.password &&
-          activeRole === 'merchant');
-
-      if (!isValid) {
-        Alert.alert(
-          'Invalid Credentials',
-          `For demo, use:\nCustomer: alex@dandan.io / password123\nMerchant: merchant@coffeehouse.com / merchant123`
-        );
-        setLoading(false);
-        return;
-      }
-
-      const result = await login(loginEmail, loginPassword, activeRole);
+      const result = await loginWithOtp(email, activeRole, isNewUser);
       if (!result.success) {
-        Alert.alert('Login Failed', result.error || 'Invalid credentials');
+        Alert.alert('Login Failed', result.error || 'Something went wrong.');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Something went wrong');
+    } catch {
+      Alert.alert('Error', 'Something went wrong.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── OTP box handler ──────────────────────────────────────────────────────────
+  const handleOtpChange = (text, index) => {
+    const digit = text.replace(/[^0-9]/g, '').slice(-1);
+    const next = [...otp];
+    next[index] = digit;
+    setOtp(next);
+    if (digit && index < 3) {
+      otpRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handleOtpKeyPress = ({ nativeEvent }, index) => {
+    if (nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs[index - 1].current?.focus();
+    }
+  };
+
+  // ── Role toggle ──────────────────────────────────────────────────────────────
+  const switchRole = (role) => {
+    setActiveRole(role);
+    setStep('email');
+    setEmail('');
+    setOtp(['', '', '', '']);
+    setIsNewUser(false);
   };
 
   return (
@@ -76,8 +100,11 @@ const LoginScreen = () => {
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.content}>
+
+        {/* Logo */}
         <View style={styles.logoContainer}>
           <View style={[styles.logo, { backgroundColor: primaryColor }]}>
             {activeRole === 'customer' ? (
@@ -90,101 +117,116 @@ const LoginScreen = () => {
             dan<Text style={[styles.brandAccent, { color: primaryColor }]}>dan</Text>
           </Text>
           <Text style={styles.tagline}>
-            {activeRole === 'customer'
-              ? "Earn. Redeem. Repeat."
-              : "Scale your brand loyalty."}
+            {activeRole === 'customer' ? 'Earn. Redeem. Repeat.' : 'Scale your brand loyalty.'}
           </Text>
         </View>
 
+        {/* Role Toggle */}
         <View style={styles.roleToggle}>
-          <TouchableOpacity
-            onPress={() => {
-              setActiveRole('customer');
-              setIsNewUser(false);
-              // Auto-fill customer credentials
-              setEmail(mockCredentials.customer.email);
-              setPassword(mockCredentials.customer.password);
-            }}
-            style={[
-              styles.roleButton,
-              activeRole === 'customer' && styles.roleButtonActive
-            ]}>
-            <Text style={[
-              styles.roleText,
-              activeRole === 'customer' && styles.roleTextActive
-            ]}>
-              Customer
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              setActiveRole('merchant');
-              setIsNewUser(false);
-              // Auto-fill merchant credentials
-              setEmail(mockCredentials.merchant.email);
-              setPassword(mockCredentials.merchant.password);
-            }}
-            style={[
-              styles.roleButton,
-              activeRole === 'merchant' && styles.roleButtonActive
-            ]}>
-            <Text style={[
-              styles.roleText,
-              activeRole === 'merchant' && styles.roleTextActive
-            ]}>
-              Merchant
-            </Text>
-          </TouchableOpacity>
+          {['customer', 'merchant'].map((r) => (
+            <TouchableOpacity
+              key={r}
+              onPress={() => switchRole(r)}
+              style={[styles.roleButton, activeRole === r && styles.roleButtonActive]}
+            >
+              <Text style={[styles.roleText, activeRole === r && { color: primaryColor }]}>
+                {r.charAt(0).toUpperCase() + r.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <View style={styles.form}>
-          {isNewUser && (
+        {/* ── Email Step ── */}
+        {step === 'email' && (
+          <View style={styles.form}>
             <Input
-              label="Full Name"
-              icon={User}
-              placeholder="Alex Dandan"
-              value={name}
-              onChange={setName}
+              label="Email Address"
+              icon={Mail}
+              placeholder={MOCK_EMAILS[activeRole]}
+              value={email}
+              onChange={setEmail}
+              autoFocus
             />
-          )}
-          <Input
-            label="Email ID"
-            icon={Mail}
-            placeholder="name@dandan.io"
-            value={email}
-            onChange={setEmail}
-          />
-          <Input
-            label="Secure Password"
-            icon={Lock}
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={setPassword}
-          />
+            <Button
+              onPress={handleSendOtp}
+              variant={activeRole === 'customer' ? 'primary' : 'merchant'}
+              style={styles.submitButton}
+            >
+              {isNewUser ? 'Register with OTP' : 'Send OTP'}
+              <ArrowRight size={20} color="#ffffff" />
+            </Button>
 
-          <Button
-            onPress={handleSubmit}
-            variant={activeRole === 'customer' ? 'primary' : 'merchant'}
-            style={styles.submitButton}
-            disabled={loading}
-            loading={loading}
-          >
-            {isNewUser ? 'Create Profile' : 'Authenticate'}
-            <ArrowRight size={20} color="#ffffff" />
-          </Button>
-        </View>
+            {/* New / Existing toggle */}
+            <TouchableOpacity onPress={() => setIsNewUser(!isNewUser)} style={styles.toggleRow}>
+              <Text style={styles.toggleText}>
+                {isNewUser ? 'Already have an account? ' : "New to dandan? "}
+                <Text style={[styles.toggleLink, { color: primaryColor }]}>
+                  {isNewUser ? 'Log In' : 'Register'}
+                </Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {isNewUser ? "Already a member?" : "New to dandan?"}{" "}
-            <Text
-              onPress={() => setIsNewUser(!isNewUser)}
-              style={[styles.footerLink, { color: primaryColor }]}>
-              {isNewUser ? "Log In" : "Register"}
+        {/* ── OTP Step ── */}
+        {step === 'otp' && (
+          <View style={styles.form}>
+
+            {/* Back button */}
+            <TouchableOpacity onPress={() => setStep('email')} style={styles.backRow}>
+              <ArrowLeft size={16} color="#64748b" />
+              <Text style={styles.backText}>Change email</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.otpLabel}>
+              Enter the 4-digit code sent to
             </Text>
-          </Text>
-        </View>
+            <Text style={[styles.otpEmail, { color: primaryColor }]}>{email}</Text>
+
+            {/* OTP Boxes */}
+            <View style={styles.otpRow}>
+              {otp.map((digit, i) => (
+                <TextInput
+                  key={i}
+                  ref={otpRefs[i]}
+                  style={[
+                    styles.otpBox,
+                    digit ? { borderColor: primaryColor } : {},
+                  ]}
+                  value={digit}
+                  onChangeText={(t) => handleOtpChange(t, i)}
+                  onKeyPress={(e) => handleOtpKeyPress(e, i)}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  textAlign="center"
+                  autoFocus={i === 0}
+                  selectTextOnFocus
+                />
+              ))}
+            </View>
+
+            <Text style={styles.demoHint}>Demo OTP: {MOCK_OTP}</Text>
+
+            <Button
+              onPress={handleVerifyOtp}
+              variant={activeRole === 'customer' ? 'primary' : 'merchant'}
+              style={styles.submitButton}
+              disabled={loading}
+              loading={loading}
+            >
+              Verify & Continue
+              <ArrowRight size={20} color="#ffffff" />
+            </Button>
+
+            <TouchableOpacity onPress={() => setStep('email')} style={styles.resendRow}>
+              <Text style={styles.resendText}>
+                Didn't receive it?{' '}
+                <Text style={[styles.resendLink, { color: primaryColor }]}>Resend</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
       </View>
     </ScrollView>
   );
@@ -239,7 +281,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     padding: 6,
     borderRadius: 24,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   roleButton: {
     flex: 1,
@@ -263,9 +305,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: '#64748b',
   },
-  roleTextActive: {
-    color: '#4f46e5',
-  },
   form: {
     gap: 16,
   },
@@ -274,16 +313,74 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 18,
   },
-  footer: {
+  backRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 24,
+    gap: 6,
+    marginBottom: 4,
   },
-  footerText: {
+  backText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  otpLabel: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#94a3b8',
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 4,
   },
-  footerLink: {
+  otpEmail: {
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 8,
+  },
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  otpBox: {
+    width: 58,
+    height: 64,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#0f172a',
+  },
+  demoHint: {
+    fontSize: 11,
+    color: '#94a3b8',
+    textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  resendRow: {
+    alignItems: 'center',
+  },
+  resendText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  resendLink: {
+    fontWeight: '900',
+  },
+  toggleRow: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  toggleText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  toggleLink: {
     fontWeight: '900',
   },
 });

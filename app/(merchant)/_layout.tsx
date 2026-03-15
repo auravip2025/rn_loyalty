@@ -1,48 +1,64 @@
-import { Stack, useRouter } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { TabBar } from "@/components/navigation/TabBar";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Tabs, useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function MerchantLayout() {
-    const { logout } = useAuth();
+    const { logout } = useAuth() as any;
     const router = useRouter();
 
-    const handleLogout = async () => {
-        await logout();
-        router.replace('/');
-    };
-
     return (
-        <Stack>
-            <Stack.Screen
+        <Tabs
+            tabBar={(props: BottomTabBarProps) => (
+                <TabBar {...props} activeTintColor="#10b981" />
+            )}
+            screenOptions={{
+                headerShown: false,
+                tabBarActiveTintColor: '#10b981',
+            }}
+        >
+            {/* ── Visible tabs ── */}
+            <Tabs.Screen
                 name="dashboard"
                 options={{
-                    title: 'Merchant Dashboard',
-                    headerRight: () => (
-                        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                            <Text style={styles.logoutText}>Logout</Text>
-                        </TouchableOpacity>
+                    title: 'Dashboard',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={26} name="building.2.fill" color={color} />
                     ),
                 }}
             />
-            <Stack.Screen
+            <Tabs.Screen
+                name="programs"
+                options={{
+                    title: 'Programs',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={26} name="list.bullet" color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="scan"
+                options={{
+                    title: 'Scan',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={26} name="qrcode.viewfinder" color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="settings"
                 options={{
                     title: 'Settings',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={26} name="gear" color={color} />
+                    ),
                 }}
             />
-        </Stack>
+
+            {/* ── Hidden screens (full-screen overlays, no tab shown) ── */}
+            <Tabs.Screen name="onboarding" options={{ href: null }} />
+            <Tabs.Screen name="profile" options={{ href: null }} />
+        </Tabs>
     );
 }
-
-const styles = StyleSheet.create({
-    logoutButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        backgroundColor: '#f43f5e',
-        borderRadius: 8,
-    },
-    logoutText: {
-        color: 'white',
-        fontWeight: 'bold',
-    },
-});

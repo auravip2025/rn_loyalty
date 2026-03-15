@@ -10,6 +10,7 @@ const realClient = {
         () => console.warn("Real network not hooked up yet."),
         { loading: false, error: new Error('Not implemented') }
     ],
+    GET_MERCHANTS: 'REAL_GET_MERCHANTS',
     GET_PROGRAMS: 'REAL_GET_PROGRAMS',
     GET_WALLET: 'REAL_GET_WALLET',
     GET_DAILY_QUESTS: 'REAL_GET_DAILY_QUESTS',
@@ -29,6 +30,7 @@ if (isMock) {
 export const useQuery = isMock ? mockClient.useQuery : realClient.useQuery;
 export const useMutation = isMock ? mockClient.useMutation : realClient.useMutation;
 
+export const GET_MERCHANTS = isMock ? mockClient.GET_MERCHANTS : realClient.GET_MERCHANTS;
 export const GET_PROGRAMS = isMock ? mockClient.GET_PROGRAMS : realClient.GET_PROGRAMS;
 export const GET_WALLET = isMock ? mockClient.GET_WALLET : realClient.GET_WALLET;
 export const GET_DAILY_QUESTS = isMock ? mockClient.GET_DAILY_QUESTS : realClient.GET_DAILY_QUESTS;

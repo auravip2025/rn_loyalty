@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
-import {
-  History,
   ChevronRight,
+  History,
   Plus,
 } from 'lucide-react-native';
-import Card from '../../components/old_app/common/Card';
+import React, { useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Button from '../../components/old_app/common/Button';
+import Card from '../../components/old_app/common/Card';
 import ProgramConfigEditor from '../../components/old_app/merchant/ProgramConfigEditor';
 
 const MerchantStore = ({ programs, onUpdateProgram }) => {
@@ -34,9 +34,8 @@ const MerchantStore = ({ programs, onUpdateProgram }) => {
   }
 
   return (
-    <ScrollView 
-      style={styles.container} 
-      showsVerticalScrollIndicator={false}
+    <ScrollView
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <Text style={styles.title}>Active Programs</Text>
@@ -53,26 +52,27 @@ const MerchantStore = ({ programs, onUpdateProgram }) => {
             style={styles.programCard}>
             <View style={styles.programRow}>
               <View style={styles.programLeft}>
-                <View 
+                <View
                   style={[
                     styles.programIcon,
-                    { backgroundColor: `#${program.color === 'amber' ? 'f59e0b' : 
-                      program.color === 'rose' ? 'f43f5e' :
-                      program.color === 'emerald' ? '10b981' :
-                      program.color === 'indigo' ? '6366f1' :
-                      program.color === 'purple' ? 'a855f7' :
-                      program.color === 'blue' ? '3b82f6' : '6366f1'}20` 
+                    {
+                      backgroundColor: `#${program.color === 'amber' ? 'f59e0b' :
+                        program.color === 'rose' ? 'f43f5e' :
+                          program.color === 'emerald' ? '10b981' :
+                            program.color === 'indigo' ? '6366f1' :
+                              program.color === 'purple' ? 'a855f7' :
+                                program.color === 'blue' ? '3b82f6' : '6366f1'}20`
                     }
                   ]}>
-                  <program.icon 
-                    size={22} 
-                    color={`#${program.color === 'amber' ? 'f59e0b' : 
+                  <program.icon
+                    size={22}
+                    color={`#${program.color === 'amber' ? 'f59e0b' :
                       program.color === 'rose' ? 'f43f5e' :
-                      program.color === 'emerald' ? '10b981' :
-                      program.color === 'indigo' ? '6366f1' :
-                      program.color === 'purple' ? 'a855f7' :
-                      program.color === 'blue' ? '3b82f6' : '6366f1'}` 
-                    } 
+                        program.color === 'emerald' ? '10b981' :
+                          program.color === 'indigo' ? '6366f1' :
+                            program.color === 'purple' ? 'a855f7' :
+                              program.color === 'blue' ? '3b82f6' : '6366f1'}`
+                    }
                   />
                 </View>
                 <View>
@@ -81,7 +81,7 @@ const MerchantStore = ({ programs, onUpdateProgram }) => {
                 </View>
               </View>
               <View style={styles.programRight}>
-                <View 
+                <View
                   style={[
                     styles.statusBadge,
                     program.active ? styles.statusActive : styles.statusInactive
@@ -100,8 +100,8 @@ const MerchantStore = ({ programs, onUpdateProgram }) => {
         ))}
       </View>
 
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         style={styles.addButton}>
         <Plus size={18} color="#94a3b8" />
         <Text style={styles.addButtonText}>Configure New Program</Text>

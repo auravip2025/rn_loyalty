@@ -1,33 +1,33 @@
+import {
+  Activity,
+  ArrowLeft,
+  Award,
+  Clock,
+  DollarSign,
+  Gift,
+  Package,
+  Plus,
+  Search,
+  Settings,
+  Sparkles,
+  TrendingUp,
+  Users
+} from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
   Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import {
-  Clock,
-  Package,
-  Gift,
-  Award,
-  Settings,
-  Plus,
-  ArrowLeft,
-  TrendingUp,
-  Users,
-  DollarSign,
-  Activity,
-  Sparkles,
-  Search,
-} from 'lucide-react-native';
-import Card from '../../components/old_app/common/Card';
-import Button from '../../components/old_app/common/Button';
 import Badge from '../../components/old_app/common/Badge';
-import RewardConfigEditor from '../../components/old_app/merchant/RewardConfigEditor';
+import Button from '../../components/old_app/common/Button';
+import Card from '../../components/old_app/common/Card';
 import PropertyOverview from '../../components/old_app/merchant/PropertyOverview';
+import RewardConfigEditor from '../../components/old_app/merchant/RewardConfigEditor';
 
 const { width } = Dimensions.get('window');
 
@@ -180,7 +180,6 @@ const MerchantAnalytics = () => {
   return (
     <ScrollView
       style={styles.container}
-      showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}>
 
       {/* Property Overview Card */}
@@ -303,6 +302,17 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 80,
   },
+  programsBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#f0fdf4', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 16,
+  },
+  programsBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  programsBannerIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#dcfce7', justifyContent: 'center', alignItems: 'center' },
+  programsBannerTitle: { fontSize: 14, fontWeight: '900', color: '#065f46' },
+  programsBannerSub: { fontSize: 11, color: '#6ee7b7', fontWeight: '600', marginTop: 2 },
+  programsBannerRight: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10b981', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  programsBannerAction: { fontSize: 12, fontWeight: '900', color: '#fff' },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
