@@ -7,23 +7,22 @@ import {
   Crown,
   Gift,
   MapPin,
-  Trophy,
-  Utensils,
-  Shirt,
-  ShoppingBag,
   Monitor,
   Scissors,
+  Shirt,
+  ShoppingBag,
+  Trophy,
+  Utensils,
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Animated, {
   Easing,
@@ -143,16 +142,16 @@ const Shimmer = ({ width = 160, duration = 2000, delay = 0 }) => {
 };
 
 const CATEGORY_DATA = [
-  { id: 1, name: 'Food', icon: Utensils, color: '#1e293b', iconColor: '#fbbf24', shops: [{name: 'KFC'}, {name: 'McDonalds'}, {name: 'Dominos'}, {name: 'Subway'}] },
-  { id: 2, name: 'Clothing', icon: Shirt, color: '#1e293b', iconColor: '#818cf8', shops: [{name: 'Zara'}, {name: 'H&M'}, {name: 'Nike'}, {name: 'Adidas'}] },
-  { id: 3, name: 'Shopping', icon: ShoppingBag, color: '#1e293b', iconColor: '#f472b6', shops: [{name: 'Amazon'}, {name: 'Target'}, {name: 'Walmart'}] },
-  { id: 4, name: 'Electronics', icon: Monitor, color: '#1e293b', iconColor: '#38bdf8', shops: [{name: 'Apple'}, {name: 'BestBuy'}, {name: 'Sony'}] },
-  { id: 5, name: 'Beauty', icon: Scissors, color: '#1e293b', iconColor: '#e879f9', shops: [{name: 'Sephora'}, {name: 'Ulta'}, {name: 'MAC'}] },
+  { id: 1, name: 'Food', icon: Utensils, color: '#002244', iconColor: '#fbbf24', shops: [{ name: 'KFC' }, { name: 'McDonalds' }, { name: 'Dominos' }, { name: 'Subway' }] },
+  { id: 2, name: 'Clothing', icon: Shirt, color: '#002244', iconColor: '#818cf8', shops: [{ name: 'Zara' }, { name: 'H&M' }, { name: 'Nike' }, { name: 'Adidas' }] },
+  { id: 3, name: 'Shopping', icon: ShoppingBag, color: '#002244', iconColor: '#f472b6', shops: [{ name: 'Amazon' }, { name: 'Target' }, { name: 'Walmart' }] },
+  { id: 4, name: 'Electronics', icon: Monitor, color: '#002244', iconColor: '#38bdf8', shops: [{ name: 'Apple' }, { name: 'BestBuy' }, { name: 'Sony' }] },
+  { id: 5, name: 'Beauty', icon: Scissors, color: '#002244', iconColor: '#e879f9', shops: [{ name: 'Sephora' }, { name: 'Ulta' }, { name: 'MAC' }] },
 ];
 
 const CategoryAccordionItem = ({ cat, isActive, onPress }) => {
   const IconComponent = cat.icon;
-  
+
   const animatedStyle = useAnimatedStyle(() => {
     return {
       width: withTiming(isActive ? 380 : 80, { duration: 300, easing: Easing.out(Easing.quad) }),
@@ -163,20 +162,20 @@ const CategoryAccordionItem = ({ cat, isActive, onPress }) => {
     <Animated.View style={[styles.categoryAccordionWrapper, animatedStyle, { backgroundColor: cat.color }]}>
       <View style={styles.tagHole} />
       <View style={styles.categoryAccordionInner}>
-        <TouchableOpacity 
-          style={styles.categoryMainContent} 
+        <TouchableOpacity
+          style={styles.categoryMainContent}
           onPress={onPress}
           activeOpacity={0.8}
         >
           <View style={styles.categoryIconWrap}>
             <IconComponent size={24} color={cat.iconColor} />
           </View>
-          <Text style={[styles.categoryName, { color: cat.iconColor }]} numberOfLines={1}>{cat.name}</Text>
+          <Text style={[styles.categoryName, { color: cat.iconColor, position: "absolute", top: 70, left: 10 }]} numberOfLines={1}>{cat.name}</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.categoryShopsWrapper}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.shopsScrollContent}
             scrollEnabled={isActive}
@@ -198,6 +197,7 @@ const CategoryAccordionItem = ({ cat, isActive, onPress }) => {
           </ScrollView>
         </View>
       </View>
+
     </Animated.View>
   );
 };
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   categoryAccordionWrapper: {
     overflow: 'hidden',
-    height: 96, 
+    height: 96,
     borderRadius: 24,
     borderTopLeftRadius: 16,
     borderBottomLeftRadius: 16,
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   tagHole: {
     position: 'absolute',
     left: 8,
-    top: 42, 
+    top: 42,
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   },
   categoryAccordionInner: {
     flexDirection: 'row',
-    width: 380, 
+    width: 380,
     height: '100%',
   },
   categoryMainContent: {
