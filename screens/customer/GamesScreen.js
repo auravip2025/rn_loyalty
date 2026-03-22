@@ -34,6 +34,7 @@ import StampCardModal from '../../components/old_app/games/StampCardModal';
 
 const iconMap = {
   RefreshCw,
+  Eraser,
   MapPin,
   Coffee,
   UserPlus,
@@ -283,23 +284,24 @@ const GamesScreen = ({
 
             {dailyQuests.map((quest, idx) => {
               const IconComp = iconMap[quest.icon] || Trophy;
+              const isQuestDone = quest.completed || (quest.title === 'Daily Spin' && dailySpinUsed) || (quest.title === 'Daily Scratch' && dailyScratchUsed);
               return (
                 <Animated.View key={quest.id} entering={FadeInDown.delay(550 + idx * 60).duration(500)}>
-                  <Card style={[styles.questCard, quest.completed && styles.questCardCompleted]}>
-                    <View style={[styles.questIcon, quest.completed && { backgroundColor: '#d1fae5' }]}>
-                      {quest.completed
+                  <Card style={[styles.questCard, isQuestDone && styles.questCardCompleted]}>
+                    <View style={[styles.questIcon, isQuestDone && { backgroundColor: '#d1fae5' }]}>
+                      {isQuestDone
                         ? <CheckCircle size={24} color="#059669" />
                         : <IconComp size={24} color="#0f172a" />
                       }
                     </View>
                     <View style={styles.questInfo}>
-                      <Text style={[styles.questName, quest.completed && { textDecorationLine: 'line-through', color: '#94a3b8' }]}>
+                      <Text style={[styles.questName, isQuestDone && { textDecorationLine: 'line-through', color: '#94a3b8' }]}>
                         {quest.title}
                       </Text>
                       <Text style={styles.questDesc}>{quest.desc}</Text>
                     </View>
-                    <View style={[styles.pointsBadge, quest.completed && { backgroundColor: '#d1fae5' }]}>
-                      <Text style={[styles.pointsText, quest.completed && { color: '#059669' }]}>
+                    <View style={[styles.pointsBadge, isQuestDone && { backgroundColor: '#d1fae5' }]}>
+                      <Text style={[styles.pointsText, isQuestDone && { color: '#059669' }]}>
                         +{quest.points} pts
                       </Text>
                     </View>

@@ -255,6 +255,8 @@ let DB = {
     dailyQuests: [
         { id: 1, title: 'Check In', desc: 'Visit a partnered store today', points: 10, icon: 'MapPin', completed: false },
         { id: 2, title: 'First Purchase', desc: 'Buy any coffee item', points: 25, icon: 'Coffee', completed: true },
+        { id: 4, title: 'Daily Spin', desc: 'Spin the Wheel of Fortune', points: 50, icon: 'RefreshCw', completed: false },
+        { id: 5, title: 'Daily Scratch', desc: 'Scratch a card to win', points: 50, icon: 'Eraser', completed: false },
         { id: 3, title: 'Refer a Friend', desc: 'Get a friend to sign up', points: 150, icon: 'UserPlus', completed: false }
     ],
     offers: [

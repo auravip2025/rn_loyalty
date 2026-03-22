@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArrowLeft, ArrowRight, LayoutGrid, Mail, Zap } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
@@ -9,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AUTHENTICATE, IS_MOCK, useMutation, VERIFY_OTP } from '../../api/client';
 import Button from '../../components/old_app/common/Button';
 import Input from '../../components/old_app/common/Input';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,20 +31,37 @@ const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [authenticate] = useMutation(AUTHENTICATE);
+  const [verifyOtp] = useMutation(VERIFY_OTP);
 
   const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
   const primaryColor = activeRole === 'customer' ? '#4f46e5' : '#10b981';
 
   // ── Step 1: Send OTP ─────────────────────────────────────────────────────────
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (!email.trim()) {
       Alert.alert('Enter Email', 'Please enter your email address.');
       return;
     }
-    // In a real app, call your API here to send OTP
-    console.log(`[OTP] Sending OTP to ${email}`);
-    setStep('otp');
+
+    setLoading(true);
+    try {
+      const { data } = await authenticate({ variables: { email: email.toLowerCase() } });
+
+      if (data?.authenticate?.success) {
+        setIsNewUser(data.authenticate.isNew);
+        setStep('otp');
+        console.log(`[GraphQL OTP] Requested for ${email}. Message: ${data.authenticate.message}`);
+      } else {
+        Alert.alert('Error', data?.authenticate?.message || 'Failed to send OTP.');
+      }
+    } catch (err) {
+      console.error('Mutation Error:', err);
+      Alert.alert('Network Error', 'Could not connect to the authentication server.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── Step 2: Verify OTP ───────────────────────────────────────────────────────
@@ -52,18 +71,40 @@ const LoginScreen = () => {
       Alert.alert('Incomplete OTP', 'Please enter the 4-digit code sent to your email.');
       return;
     }
-    if (entered !== MOCK_OTP) {
-      Alert.alert('Invalid OTP', `For demo, use: ${MOCK_OTP}`);
-      return;
-    }
+
     setLoading(true);
     try {
-      const result = await loginWithOtp(email, activeRole, isNewUser);
-      if (!result.success) {
-        Alert.alert('Login Failed', result.error || 'Something went wrong.');
+      const { data } = await verifyOtp({
+        variables: {
+          email: email.toLowerCase(),
+          otp: entered
+        }
+      });
+
+      const res = data?.verifyOtp;
+
+      if (res?.success) {
+        // Store the persistent token for the Apollo Auth Link
+        if (res.token) {
+          await AsyncStorage.setItem('@dandan_auth_token', res.token);
+        }
+
+        // Log in the user in the Context (saves basic session data)
+        const loginResult = await loginWithOtp(
+          res.user?.email || email,
+          activeRole,
+          isNewUser
+        );
+
+        if (!loginResult.success) {
+          Alert.alert('Session Error', 'Successfully verified but could not create local session.');
+        }
+      } else {
+        Alert.alert('Invalid OTP', res?.message || 'The code you entered is incorrect.');
       }
-    } catch {
-      Alert.alert('Error', 'Something went wrong.');
+    } catch (err) {
+      console.error('Verify Mutation Error:', err);
+      Alert.alert('Verification Failed', 'An error occurred during verification.');
     } finally {
       setLoading(false);
     }
@@ -151,6 +192,8 @@ const LoginScreen = () => {
               onPress={handleSendOtp}
               variant={activeRole === 'customer' ? 'primary' : 'merchant'}
               style={styles.submitButton}
+              loading={loading}
+              disabled={loading}
             >
               {isNewUser ? 'Register with OTP' : 'Send OTP'}
               <ArrowRight size={20} color="#ffffff" />
@@ -205,7 +248,7 @@ const LoginScreen = () => {
               ))}
             </View>
 
-            <Text style={styles.demoHint}>Demo OTP: {MOCK_OTP}</Text>
+            {IS_MOCK && <Text style={styles.demoHint}>Demo OTP: {MOCK_OTP}</Text>}
 
             <Button
               onPress={handleVerifyOtp}

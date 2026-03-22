@@ -10,6 +10,8 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { ProgramProvider } from '../contexts/ProgramContext';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { WalletProvider } from '../contexts/WalletContext';
+import { ApolloProvider } from '@apollo/client/react';
+import { client } from '../api/client';
 
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,15 +62,17 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <ThemeProvider>
-          <AuthProvider>
-            <WalletProvider>
-              <ProgramProvider>
-                <RootLayoutNav />
-              </ProgramProvider>
-            </WalletProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <ApolloProvider client={client}>
+          <ThemeProvider>
+            <AuthProvider>
+              <WalletProvider>
+                <ProgramProvider>
+                  <RootLayoutNav />
+                </ProgramProvider>
+              </WalletProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </ApolloProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
