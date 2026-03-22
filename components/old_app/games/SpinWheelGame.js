@@ -1,21 +1,64 @@
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import { RefreshCw, X } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import Animated, { 
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+    withDelay,
+    Easing,
+} from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Button from '../common/Button';
 
-const SpinWheelGame = ({ onClose, segments, onWin }) => {
+const CONFETTI_COLORS = ['#f59e0b', '#10b981', '#6366f1', '#f43f5e', '#ec4899', '#8b5cf6'];
+
+const ConfettiPiece = ({ startX, delay, color, size }) => {
+  const y = useSharedValue(-20);
+  const rot = useSharedValue(0);
+
+  useEffect(() => {
+    y.value = withDelay(delay, withTiming(280, { duration: 2000 + Math.random() * 1000, easing: Easing.out(Easing.quad) }));
+    rot.value = withDelay(delay, withTiming(360 * (2 + Math.random() * 2), { duration: 2500 }));
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    position: 'absolute',
+    left: startX,
+    top: y.value,
+    width: size,
+    height: size,
+    backgroundColor: color,
+    borderRadius: size > 8 ? 2 : 0,
+    transform: [{ rotate: `${rot.value}deg` }],
+  }));
+
+  return <Animated.View style={style} />;
+};
+
+const SpinWheelGame = ({ onClose, segments, onWin, merchant }) => {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
+  const [showConfetti, setShowConfetti] = useState(false);
   const rotation = useSharedValue(0);
+
+  // Generate confetti data (static, no hooks)
+  const confettiData = useMemo(() => {
+    return Array.from({ length: 30 }).map((_, i) => ({
+      x: Math.random() * 224,
+      size: 5 + Math.random() * 7,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      delay: Math.random() * 800,
+    }));
+  }, []);
 
   const prizes = segments || [];
   const radius = 112;
   const center = radius;
 
   const wheelData = useMemo(() => {
+    if (prizes.length === 0) return [];
     let cumulativePercent = 0;
     return prizes.map((prize, index) => {
       const percent = 1 / prizes.length;
@@ -56,18 +99,27 @@ const SpinWheelGame = ({ onClose, segments, onWin }) => {
         rotationAngle,
         key: index
       };
-    });
+    }).filter(w => w.path !== null);
   }, [prizes, center, radius]);
 
   const handleSpinEnd = (segmentOffset) => {
-    setSpinning(false);
-    setResult(prizes[segmentOffset]);
-    if (onWin) onWin(prizes[segmentOffset]);
+    // Defer state updates to avoid React reconciler conflict with scheduleOnRN
+    setTimeout(() => {
+      setSpinning(false);
+      const wonPrize = prizes[segmentOffset];
+      setResult(wonPrize);
+      setShowConfetti(true);
+      // Delay onWin slightly so confetti is visible before celebration modal
+      setTimeout(() => {
+        if (onWin) onWin(wonPrize);
+      }, 500);
+    }, 0);
   };
 
   const handleSpin = () => {
     if (spinning || result) return;
     setSpinning(true);
+    setShowConfetti(false);
 
     const segmentAngle = 360 / prizes.length;
     const randomSegment = Math.floor(Math.random() * prizes.length);
@@ -99,6 +151,12 @@ const SpinWheelGame = ({ onClose, segments, onWin }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
+          {merchant && (
+             <View style={styles.merchantHeader}>
+               <Image source={{ uri: merchant.image }} style={styles.merchantBadgeAvatar} />
+               <Text style={styles.merchantBadgeName}>{merchant.name}</Text>
+             </View>
+          )}
           <Text style={styles.title}>Wheel of Fortune</Text>
           <Text style={styles.subtitle}>Spin to win exclusive rewards!</Text>
         </View>
@@ -142,6 +200,15 @@ const SpinWheelGame = ({ onClose, segments, onWin }) => {
               <RefreshCw size={20} color="#cbd5e1" />
             </View>
           </Animated.View>
+
+          {/* Confetti Layer */}
+          {showConfetti && (
+            <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', pointerEvents: 'none' }]}>
+              {confettiData.map((c, i) => (
+                <ConfettiPiece key={i} startX={c.x} delay={c.delay} color={c.color} size={c.size} />
+              ))}
+            </View>
+          )}
         </View>
 
         {result ? (
@@ -205,9 +272,31 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
     marginTop: 8,
     alignItems: 'center',
+  },
+  merchantHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  merchantBadgeAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+  },
+  merchantBadgeName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#475569',
   },
   title: {
     fontSize: 20,

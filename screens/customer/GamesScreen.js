@@ -31,6 +31,7 @@ import Card from '../../components/old_app/common/Card';
 import ScratchCardGame from '../../components/old_app/games/ScratchCardGame';
 import SpinWheelGame from '../../components/old_app/games/SpinWheelGame';
 import StampCardModal from '../../components/old_app/games/StampCardModal';
+import CelebrationModal from '../../components/old_app/games/CelebrationModal';
 
 const iconMap = {
   RefreshCw,
@@ -42,7 +43,7 @@ const iconMap = {
   Star: Crown,
 };
 
-const MerchantBadge = ({ merchant }) => {
+const MerchantBadge = ({ merchant, onPlay, playText, playColor, disabled }) => {
   if (!merchant) return null;
   return (
     <View style={styles.merchantBadge}>
@@ -55,13 +56,14 @@ const MerchantBadge = ({ merchant }) => {
           {merchant.address}
         </Text>
       </View>
-      {merchant.offers && merchant.offers.length > 0 && (
-        <View style={styles.merchantOfferTag}>
-          <Gift size={10} color="#059669" />
-          <Text style={styles.merchantOfferTagText}>
-            {merchant.offers.length} offer{merchant.offers.length > 1 ? 's' : ''}
-          </Text>
-        </View>
+      {onPlay && (
+        <TouchableOpacity
+          onPress={onPlay}
+          disabled={disabled}
+          style={[styles.smallPlayButton, { backgroundColor: playColor || '#f59e0b' }, disabled && styles.playButtonDisabled]}
+        >
+          <Text style={styles.smallPlayButtonText}>{playText || 'Play'}</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -77,25 +79,24 @@ const GamesScreen = ({
   setDailyScratchUsed,
   setActiveCoupon,
   onBack,
+  onRefresh,
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [showWheel, setShowWheel] = useState(false);
-  const [showScratch, setShowScratch] = useState(false);
-  const [showStamps, setShowStamps] = useState(false);
+  const [activeWheel, setActiveWheel] = useState(null);
+  const [activeScratch, setActiveScratch] = useState(null);
+  const [activeStamps, setActiveStamps] = useState(null);
+  const [celebrationPrize, setCelebrationPrize] = useState(null);
+  const [celebrationMerchant, setCelebrationMerchant] = useState(null);
 
-  const wheelProgram = programs?.find(p => p.name === 'Wheel of Fortune' && p.active);
-  const scratchProgram = programs?.find(p => p.name === 'Scratch & Win' && p.active);
-  const stampsProgram = programs?.find(p => p.name === 'Digital Stamps' && p.active);
+  const wheelPrograms = programs?.filter(p => p.name === 'Wheel of Fortune' && p.active) || [];
+  const scratchPrograms = programs?.filter(p => p.name === 'Scratch & Win' && p.active) || [];
+  const stampsPrograms = programs?.filter(p => p.name === 'Digital Stamps' && p.active) || [];
 
   const getMerchant = (program) => {
     if (!program?.merchantId || !merchants) return null;
     return merchants.find(m => m.id === program.merchantId);
   };
-
-  const wheelMerchant = getMerchant(wheelProgram);
-  const scratchMerchant = getMerchant(scratchProgram);
-  const stampsMerchant = getMerchant(stampsProgram);
 
   const navigateToCheckout = (prize, merchant) => {
     if (!merchant) return;
@@ -117,34 +118,28 @@ const GamesScreen = ({
     });
   };
 
-  const handleWin = (prize, type) => {
-    if (type === 'wheel') setDailySpinUsed(true);
-    if (type === 'scratch') setDailyScratchUsed(true);
-
-    const merchant = type === 'wheel' ? wheelMerchant : scratchMerchant;
+  const handleWin = (prize, type, merchant) => {
+    // Refresh data from server
+    if (onRefresh) onRefresh();
 
     if (prize.type === 'discount' || prize.type === 'item') {
       setActiveCoupon(prize);
       // Close the game modal first, then navigate after a short delay
       setTimeout(() => {
-        if (type === 'wheel') setShowWheel(false);
-        if (type === 'scratch') setShowScratch(false);
+        if (type === 'wheel') setActiveWheel(null);
+        if (type === 'scratch') setActiveScratch(null);
         setTimeout(() => navigateToCheckout(prize, merchant), 300);
       }, 1500);
     } else if (prize.type === 'points' || prize.type === 'multiplier') {
-      Alert.alert(
-        '🎉 You Won!',
-        `${prize.label} has been added to your wallet!`,
-        [{ text: 'Awesome!' }]
-      );
+      setCelebrationPrize(prize);
+      setCelebrationMerchant(merchant);
     }
     // 'none' type — game modal handles "try again" UI
   };
 
-  const gamePrograms = [wheelProgram, scratchProgram, stampsProgram].filter(Boolean);
   const completedQuests = dailyQuests?.filter(q => q.completed)?.length || 0;
-  const totalQuests = (dailyQuests?.length || 0) + gamePrograms.length;
-  const completedTotal = completedQuests + (dailySpinUsed ? 1 : 0) + (dailyScratchUsed ? 1 : 0);
+  const totalQuests = (dailyQuests?.length || 0) + wheelPrograms.length + scratchPrograms.length + stampsPrograms.length;
+  const completedTotal = completedQuests; // Removed the 'used' flags from total progress
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -190,87 +185,86 @@ const GamesScreen = ({
           <Text style={styles.sectionTitle}>🎮 Merchant Games</Text>
         </Animated.View>
 
-        {/* Wheel of Fortune */}
-        {wheelProgram && (
-          <Animated.View entering={FadeInDown.delay(350).duration(500)}>
-            <Card style={styles.gameCard}>
+        {/* Wheel of Fortune Section */}
+        {wheelPrograms.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+            <Card style={styles.consolidatedCard}>
               <View style={styles.gameCardLeft}>
                 <View style={[styles.gameIcon, { backgroundColor: '#fffbeb' }]}>
                   <RefreshCw size={32} color="#d97706" />
                 </View>
                 <View style={styles.gameInfo}>
-                  <Text style={styles.gameName}>{wheelProgram.name}</Text>
+                  <Text style={styles.gameName}>Wheel of Fortune</Text>
                   <Text style={styles.gameDesc}>
-                    {dailySpinUsed ? '✅ Completed today' : 'Spin to win prizes & points!'}
+                    {dailySpinUsed ? '✅ Daily spin completed' : 'Spin to win prizes at these stores!'}
                   </Text>
-                  <Text style={styles.gameReward}>Up to 500 points</Text>
                 </View>
               </View>
-              <MerchantBadge merchant={wheelMerchant} />
-              <Button
-                variant="primary"
-                onPress={() => !dailySpinUsed && setShowWheel(true)}
-                disabled={dailySpinUsed}
-                style={[styles.playButton, dailySpinUsed && styles.playButtonDisabled]}>
-                <Text style={styles.playButtonText}>
-                  {dailySpinUsed ? 'Done' : '▶ Play'}
-                </Text>
-              </Button>
+              <View style={styles.merchantSeparator} />
+              {wheelPrograms.map((program, idx) => (
+                <MerchantBadge 
+                  key={`wheel-m-${program.id}-${idx}`}
+                  merchant={getMerchant(program)} 
+                  onPlay={() => setActiveWheel(program)}
+                  playText="Spin"
+                />
+              ))}
             </Card>
           </Animated.View>
         )}
 
-        {/* Scratch & Win */}
-        {scratchProgram && (
-          <Animated.View entering={FadeInDown.delay(400).duration(500)}>
-            <Card style={styles.gameCard}>
+        {/* Scratch & Win Section */}
+        {scratchPrograms.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+            <Card style={styles.consolidatedCard}>
               <View style={styles.gameCardLeft}>
                 <View style={[styles.gameIcon, { backgroundColor: '#fff1f2' }]}>
                   <Eraser size={32} color="#e11d48" />
                 </View>
                 <View style={styles.gameInfo}>
-                  <Text style={styles.gameName}>{scratchProgram.name}</Text>
+                  <Text style={styles.gameName}>Scratch & Win</Text>
                   <Text style={styles.gameDesc}>
-                    {dailyScratchUsed ? '✅ Completed today' : 'Scratch & reveal your prize!'}
+                    {dailyScratchUsed ? '✅ Daily scratch completed' : 'Scratch & reveal your prize!'}
                   </Text>
-                  <Text style={styles.gameReward}>Coupons & discounts</Text>
                 </View>
               </View>
-              <MerchantBadge merchant={scratchMerchant} />
-              <Button
-                variant="primary"
-                onPress={() => !dailyScratchUsed && setShowScratch(true)}
-                disabled={dailyScratchUsed}
-                style={[styles.playButton, { backgroundColor: '#e11d48' }, dailyScratchUsed && styles.playButtonDisabled]}>
-                <Text style={styles.playButtonText}>
-                  {dailyScratchUsed ? 'Done' : '▶ Play'}
-                </Text>
-              </Button>
+              <View style={styles.merchantSeparator} />
+              {scratchPrograms.map((program, idx) => (
+                <MerchantBadge 
+                  key={`scratch-m-${program.id}-${idx}`}
+                  merchant={getMerchant(program)}
+                  onPlay={() => setActiveScratch(program)}
+                  playColor="#e11d48"
+                  playText="Scratch"
+                />
+              ))}
             </Card>
           </Animated.View>
         )}
 
-        {/* Digital Stamps */}
-        {stampsProgram && (
-          <Animated.View entering={FadeInDown.delay(450).duration(500)}>
-            <Card style={styles.gameCard}>
+        {/* Digital Stamps Section */}
+        {stampsPrograms.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(300).duration(500)}>
+            <Card style={styles.consolidatedCard}>
               <View style={styles.gameCardLeft}>
                 <View style={[styles.gameIcon, { backgroundColor: '#ecfdf5' }]}>
                   <Coffee size={32} color="#059669" />
                 </View>
                 <View style={styles.gameInfo}>
-                  <Text style={styles.gameName}>{stampsProgram.name}</Text>
-                  <Text style={styles.gameDesc}>6/10 stamps collected</Text>
-                  <Text style={styles.gameReward}>Free coffee at 10!</Text>
+                  <Text style={styles.gameName}>Digital Stamp Cards</Text>
+                  <Text style={styles.gameDesc}>Collect stamps and earn free rewards!</Text>
                 </View>
               </View>
-              <MerchantBadge merchant={stampsMerchant} />
-              <Button
-                variant="primary"
-                onPress={() => setShowStamps(true)}
-                style={[styles.playButton, { backgroundColor: '#059669' }]}>
-                <Text style={styles.playButtonText}>View</Text>
-              </Button>
+              <View style={styles.merchantSeparator} />
+              {stampsPrograms.map((program, idx) => (
+                <MerchantBadge 
+                  key={`stamps-m-${program.id}-${idx}`}
+                  merchant={getMerchant(program)}
+                  onPlay={() => setActiveStamps(program)}
+                  playColor="#059669"
+                  playText="View"
+                />
+              ))}
             </Card>
           </Animated.View>
         )}
@@ -313,7 +307,7 @@ const GamesScreen = ({
         )}
 
         {/* Empty State */}
-        {!wheelProgram && !scratchProgram && !stampsProgram && (!dailyQuests || dailyQuests.length === 0) && (
+        {wheelPrograms.length === 0 && scratchPrograms.length === 0 && stampsPrograms.length === 0 && (!dailyQuests || dailyQuests.length === 0) && (
           <Animated.View entering={FadeInDown.delay(300).duration(500)}>
             <View style={styles.emptyState}>
               <Trophy size={48} color="#cbd5e1" />
@@ -325,28 +319,42 @@ const GamesScreen = ({
       </ScrollView>
 
       {/* Game Modals */}
-      {showWheel && wheelProgram && (
+      {activeWheel && (
         <SpinWheelGame
-          onClose={() => setShowWheel(false)}
-          segments={wheelProgram.segments}
-          onWin={(prize) => handleWin(prize, 'wheel')}
+          onClose={() => setActiveWheel(null)}
+          segments={activeWheel.segments}
+          merchant={getMerchant(activeWheel)}
+          onWin={(prize) => handleWin(prize, 'wheel', getMerchant(activeWheel))}
         />
       )}
 
-      {showScratch && scratchProgram && (
+      {activeScratch && (
         <ScratchCardGame
-          onClose={() => setShowScratch(false)}
-          outcomes={scratchProgram.segments}
-          onWin={(prize) => handleWin(prize, 'scratch')}
+          onClose={() => setActiveScratch(null)}
+          outcomes={activeScratch.segments}
+          merchant={getMerchant(activeScratch)}
+          onWin={(prize) => handleWin(prize, 'scratch', getMerchant(activeScratch))}
         />
       )}
 
-      {showStamps && stampsProgram && (
+      {activeStamps && (
         <StampCardModal
-          onClose={() => setShowStamps(false)}
-          program={stampsProgram}
+          onClose={() => setActiveStamps(null)}
+          program={activeStamps}
+          merchant={getMerchant(activeStamps)}
         />
       )}
+
+      <CelebrationModal
+        visible={!!celebrationPrize}
+        prize={celebrationPrize}
+        merchant={celebrationMerchant}
+        onClose={() => {
+            setCelebrationPrize(null);
+            setCelebrationMerchant(null);
+            if (onRefresh) onRefresh();
+        }}
+      />
     </View>
   );
 };
@@ -447,104 +455,6 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     marginBottom: 12,
   },
-  gameCard: {
-    marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: '#f1f5f9',
-    padding: 16,
-  },
-  gameCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  gameIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  gameInfo: {
-    flex: 1,
-  },
-  gameName: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 3,
-  },
-  gameDesc: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 2,
-  },
-  gameReward: {
-    fontSize: 11,
-    color: '#d97706',
-    fontWeight: '700',
-  },
-  // Merchant Badge
-  merchantBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  merchantAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    marginRight: 10,
-    backgroundColor: '#e2e8f0',
-  },
-  merchantBadgeInfo: {
-    flex: 1,
-  },
-  merchantBadgeName: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 1,
-  },
-  merchantBadgeAddress: {
-    fontSize: 10,
-    color: '#94a3b8',
-  },
-  merchantOfferTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  merchantOfferTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  playButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#f59e0b',
-    alignSelf: 'flex-end',
-    borderRadius: 12,
-  },
-  playButtonDisabled: {
-    opacity: 0.5,
-  },
-  playButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
   questCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -552,6 +462,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1.5,
     borderColor: '#f1f5f9',
+    padding: 16,
   },
   questCardCompleted: {
     opacity: 0.7,
@@ -602,6 +513,96 @@ const styles = StyleSheet.create({
   emptyDesc: {
     fontSize: 13,
     color: '#cbd5e1',
+  },
+  playButtonDisabled: {
+    opacity: 0.5,
+  },
+  consolidatedCard: {
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: '#f1f5f9',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+  },
+  merchantSeparator: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
+  },
+  merchantBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  merchantAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    marginRight: 10,
+    backgroundColor: '#e2e8f0',
+  },
+  merchantBadgeInfo: {
+    flex: 1,
+  },
+  merchantBadgeName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 1,
+  },
+  merchantBadgeAddress: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  smallPlayButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#f59e0b',
+  },
+  smallPlayButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  gameCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  gameIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  gameInfo: {
+    flex: 1,
+  },
+  gameName: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0f172a',
+    marginBottom: 3,
+  },
+  gameDesc: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 2,
+  },
+  gameReward: {
+    fontSize: 11,
+    color: '#d97706',
+    fontWeight: '700',
   },
 });
 

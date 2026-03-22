@@ -7,7 +7,7 @@ import {
 } from "@shopify/react-native-skia";
 import { Trophy, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAnimatedReaction, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -16,7 +16,7 @@ import Button from '../common/Button';
 const CARD_WIDTH = 300;
 const CARD_HEIGHT = 150;
 
-const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
+const ScratchCardGame = ({ onClose, outcomes, onWin, merchant }) => {
   const [isRevealed, setIsRevealed] = useState(false);
   const [prize, setPrize] = useState(null);
   const winFired = React.useRef(false);
@@ -110,6 +110,12 @@ const ScratchCardGame = ({ onClose, outcomes, onWin }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
+          {merchant && (
+             <View style={styles.merchantHeader}>
+               <Image source={{ uri: merchant.image }} style={styles.merchantBadgeAvatar} />
+               <Text style={styles.merchantBadgeName}>{merchant.name}</Text>
+             </View>
+          )}
           <Text style={styles.title}>Scratch & Win</Text>
           <Text style={styles.subtitle}>Use your finger to scratch and win!</Text>
         </View>
@@ -216,9 +222,31 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
     marginTop: 8,
     alignItems: 'center',
+  },
+  merchantHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  merchantBadgeAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+  },
+  merchantBadgeName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#475569',
   },
   title: {
     fontSize: 20,

@@ -1,10 +1,10 @@
 import { Coffee, X } from 'lucide-react-native';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 
-const StampCardModal = ({ onClose, program }) => {
+const StampCardModal = ({ onClose, program, merchant }) => {
   const totalStamps = 10;
   const currentStamps = 6;
 
@@ -16,6 +16,12 @@ const StampCardModal = ({ onClose, program }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
+          {merchant && (
+             <View style={styles.merchantHeader}>
+               <Image source={{ uri: merchant.image }} style={styles.merchantBadgeAvatar} />
+               <Text style={styles.merchantBadgeName}>{merchant.name}</Text>
+             </View>
+          )}
           <Text style={styles.title}>{program.name}</Text>
           <Text style={styles.subtitle}>Collect stamps to redeem rewards!</Text>
         </View>
@@ -105,9 +111,31 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
     marginTop: 8,
     alignItems: 'center',
+  },
+  merchantHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  merchantBadgeAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+  },
+  merchantBadgeName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#475569',
   },
   title: {
     fontSize: 20,

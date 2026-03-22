@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 // MOCK QUERIES
 export const GET_MERCHANTS = `
   query GetMerchants {
-    merchants { id name category categoryEmoji distance rating reviewCount open address phone hours website image description tags visitCount programs { id name desc icon color } offers { id title desc discount expires } reviews { author rating text date } }
+    merchants { id name category categoryEmoji distance rating reviewCount open address phone hours website image description tags visitCount programs { id name desc active icon color segments } offers { id title desc discount expires } reviews { author rating text date } }
   }
 `;
 
@@ -86,9 +86,17 @@ let DB = {
             description: 'Award-winning specialty coffee roasters serving single-origin brews and artisan pastries since 2012.',
             tags: ['Popular', 'Trending'],
             programs: [
-                { id: 1, name: 'Loyalty Points', desc: '1 pt per $1 spent', icon: 'Star', color: 'indigo' },
-                { id: 4, name: 'Digital Stamps', desc: 'Buy 9, Get 1 Free', icon: 'QrCode', color: 'emerald' },
-                { id: 1, name: 'Wheel of Fortune', desc: 'Daily spin for bonus points', icon: 'RefreshCw', color: 'amber' },
+                { id: 1, name: 'Loyalty Points', desc: '1 pt per $1 spent', active: true, icon: 'Star', color: 'indigo' },
+                { id: 4, name: 'Digital Stamps', desc: 'Buy 9, Get 1 Free', active: true, icon: 'QrCode', color: 'emerald' },
+                { id: 2, name: 'Wheel of Fortune', desc: 'Daily spin for bonus points', active: true, icon: 'RefreshCw', color: 'amber', 
+                  segments: [
+                    { label: '50 Pts', color: '#6366f1', type: 'points', value: 50 },
+                    { label: '0 Luck', color: '#94a3b8', type: 'none', value: 0 },
+                    { label: '10% Off', color: '#10b981', type: 'discount', value: 10 },
+                    { label: 'Free Tea', color: '#f59e0b', type: 'item', value: 'Tea' },
+                    { label: '2x Pts', color: '#ec4899', type: 'multiplier', value: 2 },
+                  ]
+                },
             ],
             offers: [
                 { id: 'o1', title: '1-for-1 Latte', desc: 'Every Tuesday, 2–5 PM', discount: '50%', expires: '31 Dec 2025' },
@@ -109,8 +117,15 @@ let DB = {
             description: 'Curated lifestyle and fashion brand for the urban explorer. New arrivals every week.',
             tags: ['Trending'],
             programs: [
-                { id: 2, name: 'Member Discount', desc: 'Flat 10% off for members', icon: 'Percent', color: 'blue' },
-                { id: 6, name: 'Tiered Loyalty', desc: 'Bronze → Silver → Gold', icon: 'Crown', color: 'purple' },
+                { id: 2, name: 'Member Discount', desc: 'Flat 10% off for members', active: true, icon: 'Percent', color: 'blue' },
+                { id: 8, name: 'Wheel of Fortune', desc: 'Style spin!', active: true, icon: 'RefreshCw', color: 'amber',
+                  segments: [
+                    { label: 'Shoes', color: '#6366f1', type: 'item', value: 'Shoes' },
+                    { label: '20% Off', color: '#10b981', type: 'discount', value: 20 },
+                    { label: '500 Pts', color: '#f59e0b', type: 'points', value: 500 },
+                    { label: 'Try Next Time', color: '#94a3b8', type: 'none', value: 0 },
+                  ]
+                },
             ],
             offers: [
                 { id: 'o3', title: '$10 Voucher', desc: 'Min. spend $50', discount: '$10 OFF', expires: '20 Dec 2025' },
@@ -150,8 +165,15 @@ let DB = {
             description: 'Premium organic grocery store with fresh produce, artisan foods and eco-friendly household products.',
             tags: ['Popular', 'Eco-Friendly'],
             programs: [
-                { id: 3, name: 'Loyalty Points', desc: '1 pt per $1 spent', icon: 'Star', color: 'indigo' },
-                { id: 4, name: 'Digital Stamps', desc: 'Every 10th visit: $5 off', icon: 'QrCode', color: 'emerald' },
+                { id: 3, name: 'Loyalty Points', desc: '1 pt per $1 spent', active: true, icon: 'Star', color: 'indigo' },
+                { id: 9, name: 'Wheel of Fortune', desc: 'Fresh rewards!', active: true, icon: 'RefreshCw', color: 'amber',
+                  segments: [
+                    { label: 'Organic Apple', color: '#10b981', type: 'item', value: 'Apple' },
+                    { label: 'Free Delivery', color: '#6366f1', type: 'item', value: 'Delivery' },
+                    { label: '5% Extra', color: '#f59e0b', type: 'discount', value: 5 },
+                    { label: 'No Luck', color: '#94a3b8', type: 'none', value: 0 },
+                  ]
+                },
             ],
             offers: [
                 { id: 'o6', title: 'Fresh Friday', desc: '20% off all vegetables on Fridays', discount: '20%', expires: 'Weekly' },
@@ -193,7 +215,15 @@ let DB = {
             description: 'World-renowned Taiwanese restaurant famous for its handcrafted xiao long bao and quality dim sum.',
             tags: ['Popular', 'Trending'],
             programs: [
-                { id: 3, name: 'Loyalty Points', desc: '1 pt per $1 spent', icon: 'Star', color: 'indigo' },
+                { id: 3, name: 'Loyalty Points', desc: '1 pt per $1 spent', active: true, icon: 'Star', color: 'indigo' },
+                { id: 5, name: 'Scratch & Win', desc: 'Try your luck!', active: true, icon: 'Ticket', color: 'rose',
+                  segments: [
+                    { label: '100 Pts', color: '#6366f1', type: 'points', value: 100 },
+                    { label: '5% Off', color: '#10b981', type: 'discount', value: 5 },
+                    { label: 'Free XLB', color: '#f59e0b', type: 'item', value: 'XLB' },
+                    { label: 'Try Again', color: '#94a3b8', type: 'none', value: 0 },
+                  ]
+                },
             ],
             offers: [
                 { id: 'o10', title: 'Free XLB Set', desc: 'Redeem with 500 points', discount: 'FREE', expires: 'Ongoing' },
