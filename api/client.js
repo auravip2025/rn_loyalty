@@ -103,11 +103,8 @@ export const AUTHENTICATE = `
     authenticate(email: $email) {
       success
       message
-      isNew
-      user {
-        id
-        email
-      }
+      expiresIn
+      cooldown
     }
   }
 `;
@@ -115,13 +112,20 @@ export const AUTHENTICATE = `
 export const VERIFY_OTP = `
   mutation VerifyOtp($email: String!, $otp: String!) {
     verifyOtp(email: $email, otp: $otp) {
-      success
-      message
-      token
       user {
-        email
+        role
         isEmailVerified
+        id
+        email
+        createdAt
       }
+      token
+      tokenType
+      success
+      refreshToken
+      message
+      isNewUser
+      expiresIn
     }
   }
 `;

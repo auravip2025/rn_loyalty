@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArrowLeft, ArrowRight, LayoutGrid, Mail, Zap } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +15,7 @@ import Input from '../../components/old_app/common/Input';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Mock OTP for demo
-const MOCK_OTP = '1234';
+const MOCK_OTP = '123456';
 
 const MOCK_EMAILS = {
   customer: 'alex@dandan.io',
@@ -29,36 +28,39 @@ const LoginScreen = () => {
   const [isNewUser, setIsNewUser] = useState(false);
   const [step, setStep] = useState('email'); // 'email' | 'otp'
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [authenticate] = useMutation(AUTHENTICATE);
   const [verifyOtp] = useMutation(VERIFY_OTP);
 
-  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
 
   const primaryColor = activeRole === 'customer' ? '#4f46e5' : '#10b981';
 
   // ── Step 1: Send OTP ─────────────────────────────────────────────────────────
   const handleSendOtp = async () => {
     if (!email.trim()) {
-      Alert.alert('Enter Email', 'Please enter your email address.');
+      setEmailError('Please enter your email address.');
       return;
     }
 
+    setEmailError('');
     setLoading(true);
     try {
       const { data } = await authenticate({ variables: { email: email.toLowerCase() } });
 
       if (data?.authenticate?.success) {
-        setIsNewUser(data.authenticate.isNew);
         setStep('otp');
-        console.log(`[GraphQL OTP] Requested for ${email}. Message: ${data.authenticate.message}`);
+        setOtpError('');
+        console.log(`[GraphQL OTP] Requested for ${email}. Message: ${data.authenticate.message}, Expires in: ${data.authenticate.expiresIn}s, Cooldown: ${data.authenticate.cooldown}s`);
       } else {
-        Alert.alert('Error', data?.authenticate?.message || 'Failed to send OTP.');
+        setEmailError(data?.authenticate?.message || 'Failed to send OTP.');
       }
     } catch (err) {
       console.error('Mutation Error:', err);
-      Alert.alert('Network Error', 'Could not connect to the authentication server.');
+      setEmailError('Could not connect to the authentication server.');
     } finally {
       setLoading(false);
     }
@@ -67,8 +69,8 @@ const LoginScreen = () => {
   // ── Step 2: Verify OTP ───────────────────────────────────────────────────────
   const handleVerifyOtp = async () => {
     const entered = otp.join('');
-    if (entered.length < 4) {
-      Alert.alert('Incomplete OTP', 'Please enter the 4-digit code sent to your email.');
+    if (entered.length < 6) {
+      setOtpError('Please enter the 6-digit code sent to your email.');
       return;
     }
 
@@ -88,23 +90,32 @@ const LoginScreen = () => {
         if (res.token) {
           await AsyncStorage.setItem('@dandan_auth_token', res.token);
         }
+        // Store refresh token
+        if (res.refreshToken) {
+          await AsyncStorage.setItem('@dandan_refresh_token', res.refreshToken);
+        }
+
+        console.log(`[GraphQL Verify] Success. User: ${res.user?.email}, Role: ${res.user?.role}, isNew: ${res.isNewUser}, tokenType: ${res.tokenType}, expiresIn: ${res.expiresIn}s`);
+
+        // Use role from server response, fallback to selected role
+        const userRole = res.user?.role || activeRole;
 
         // Log in the user in the Context (saves basic session data)
         const loginResult = await loginWithOtp(
           res.user?.email || email,
-          activeRole,
-          isNewUser
+          userRole,
+          res.isNewUser
         );
 
         if (!loginResult.success) {
-          Alert.alert('Session Error', 'Successfully verified but could not create local session.');
+          setOtpError('Successfully verified but could not create local session.');
         }
       } else {
-        Alert.alert('Invalid OTP', res?.message || 'The code you entered is incorrect.');
+        setOtpError(res?.message || 'The code you entered is incorrect.');
       }
     } catch (err) {
       console.error('Verify Mutation Error:', err);
-      Alert.alert('Verification Failed', 'An error occurred during verification.');
+      setOtpError('An error occurred during verification. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,11 +123,12 @@ const LoginScreen = () => {
 
   // ── OTP box handler ──────────────────────────────────────────────────────────
   const handleOtpChange = (text, index) => {
+    if (otpError) setOtpError('');
     const digit = text.replace(/[^0-9]/g, '').slice(-1);
     const next = [...otp];
     next[index] = digit;
     setOtp(next);
-    if (digit && index < 3) {
+    if (digit && index < 5) {
       otpRefs[index + 1].current?.focus();
     }
   };
@@ -132,7 +144,7 @@ const LoginScreen = () => {
     setActiveRole(role);
     setStep('email');
     setEmail('');
-    setOtp(['', '', '', '']);
+    setOtp(['', '', '', '', '', '']);
     setIsNewUser(false);
   };
 
@@ -185,7 +197,7 @@ const LoginScreen = () => {
               icon={Mail}
               placeholder={MOCK_EMAILS[activeRole]}
               value={email}
-              onChange={setEmail}
+              onChange={(val) => { setEmail(val); if (emailError) setEmailError(''); }}
               autoFocus
             />
             <Button
@@ -198,6 +210,8 @@ const LoginScreen = () => {
               {isNewUser ? 'Register with OTP' : 'Send OTP'}
               <ArrowRight size={20} color="#ffffff" />
             </Button>
+
+            {emailError ? <Text style={styles.inlineError}>{emailError}</Text> : null}
 
             {/* New / Existing toggle */}
             <TouchableOpacity onPress={() => setIsNewUser(!isNewUser)} style={styles.toggleRow}>
@@ -222,7 +236,7 @@ const LoginScreen = () => {
             </TouchableOpacity>
 
             <Text style={styles.otpLabel}>
-              Enter the 4-digit code sent to
+              Enter the 6-digit code sent to
             </Text>
             <Text style={[styles.otpEmail, { color: primaryColor }]}>{email}</Text>
 
@@ -235,6 +249,7 @@ const LoginScreen = () => {
                   style={[
                     styles.otpBox,
                     digit ? { borderColor: primaryColor } : {},
+                    otpError ? styles.otpBoxError : {},
                   ]}
                   value={digit}
                   onChangeText={(t) => handleOtpChange(t, i)}
@@ -247,6 +262,8 @@ const LoginScreen = () => {
                 />
               ))}
             </View>
+
+            {otpError ? <Text style={styles.otpErrorText}>{otpError}</Text> : null}
 
             {IS_MOCK && <Text style={styles.demoHint}>Demo OTP: {MOCK_OTP}</Text>}
 
@@ -386,15 +403,25 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   otpBox: {
-    width: 58,
-    height: 64,
-    borderRadius: 16,
+    width: 46,
+    height: 56,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: '#0f172a',
+  },
+  otpBoxError: {
+    borderColor: '#ef4444',
+  },
+  otpErrorText: {
+    fontSize: 13,
+    color: '#ef4444',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginTop: -4,
   },
   demoHint: {
     fontSize: 11,
@@ -425,6 +452,12 @@ const styles = StyleSheet.create({
   },
   toggleLink: {
     fontWeight: '900',
+  },
+  inlineError: {
+    fontSize: 13,
+    color: '#ef4444',
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });
 
