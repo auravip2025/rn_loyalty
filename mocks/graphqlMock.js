@@ -389,6 +389,38 @@ export const useMutation = (mutation) => {
                         };
                         DB.wallet.transactions.unshift(newTx);
                         resolve({ data: { earnPoints: { success: true, wallet: DB.wallet } } });
+                    } else if (typeof mutation === 'string' && mutation.includes('Authenticate')) {
+                        resolve({
+                            data: {
+                                authenticate: {
+                                    success: true,
+                                    message: "Mock OTP sent successfully",
+                                    expiresIn: 300,
+                                    cooldown: 60
+                                }
+                            }
+                        });
+                    } else if (typeof mutation === 'string' && mutation.includes('VerifyOtp')) {
+                        resolve({
+                            data: {
+                                verifyOtp: {
+                                    success: true,
+                                    message: "Mock OTP verified",
+                                    token: "mock_token",
+                                    refreshToken: "mock_refresh_token",
+                                    isNewUser: false,
+                                    expiresIn: 86400,
+                                    tokenType: "Bearer",
+                                    user: {
+                                        id: "mock_user_1",
+                                        email: variables.email,
+                                        role: variables.email?.includes('merchant') ? 'merchant' : 'customer',
+                                        isEmailVerified: true,
+                                        createdAt: new Date().toISOString()
+                                    }
+                                }
+                            }
+                        });
                     } else {
                         resolve({ data: { success: true } });
                     }

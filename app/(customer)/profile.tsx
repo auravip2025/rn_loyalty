@@ -38,6 +38,12 @@ export default function ProfilePage() {
                     <TouchableOpacity style={[styles.outlineButton, isDark && styles.outlineButtonDark]}>
                         <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>Notification Center</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.outlineButton, isDark && styles.outlineButtonDark]}
+                        onPress={() => router.push('/(customer)/stats')}
+                    >
+                        <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>Analytics & Stats</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.themeButton, isDark && styles.themeButtonDark]}
                         onPress={toggleTheme}

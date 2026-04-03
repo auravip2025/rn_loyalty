@@ -25,6 +25,7 @@ const MAPPING = {
   'qrcode': 'qr-code-scanner',
   'chart.bar.fill': 'bar-chart',
   'person.fill': 'person',
+  'message.fill': 'chat',
 
   // Merchant tab icons
   'building.2.fill': 'storefront',
