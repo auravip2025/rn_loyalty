@@ -199,6 +199,7 @@ const LoginScreen = () => {
               value={email}
               onChange={(val) => { setEmail(val); if (emailError) setEmailError(''); }}
               autoFocus
+              testID="email-input"
             />
             <Button
               onPress={handleSendOtp}
@@ -206,6 +207,7 @@ const LoginScreen = () => {
               style={styles.submitButton}
               loading={loading}
               disabled={loading}
+              testID="send-otp-btn"
             >
               {isNewUser ? 'Register with OTP' : 'Send OTP'}
               <ArrowRight size={20} color="#ffffff" />
@@ -259,6 +261,8 @@ const LoginScreen = () => {
                   textAlign="center"
                   autoFocus={i === 0}
                   selectTextOnFocus
+                  testID={`otp-input-${i}`}
+                  accessibilityLabel={`OTP digit ${i + 1}`}
                 />
               ))}
             </View>
@@ -273,6 +277,7 @@ const LoginScreen = () => {
               style={styles.submitButton}
               disabled={loading}
               loading={loading}
+              testID="verify-otp-btn"
             >
               Verify & Continue
               <ArrowRight size={20} color="#ffffff" />

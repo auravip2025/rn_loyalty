@@ -1,0 +1,13 @@
+# Firebase Robo Test Directives
+# These pre-fill text fields and configure the Robo crawler
+# Used with: --robo-directives flag in gcloud
+
+directives:
+  # Pre-fill the email input so Robo can proceed past login
+  - type: text
+    resourceName: "email-input"
+    inputText: "alex@dandan.io"
+
+  # Click the Send OTP button
+  - type: click
+    resourceName: "send-otp-btn"

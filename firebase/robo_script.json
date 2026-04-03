@@ -1,0 +1,100 @@
+[
+  {
+    "eventType": "VIEW_TEXT_CHANGED",
+    "replacementText": "alex@dandan.io",
+    "elementDescriptors": [
+      {
+        "resourceId": "email-input",
+        "className": "android.widget.EditText"
+      }
+    ]
+  },
+  {
+    "eventType": "VIEW_CLICKED",
+    "elementDescriptors": [
+      {
+        "resourceId": "send-otp-btn",
+        "className": "android.view.View",
+        "contentDescription": "Send OTP"
+      }
+    ]
+  },
+  {
+    "eventType": "WAIT",
+    "delayTime": 3000
+  },
+  {
+    "eventType": "VIEW_TEXT_CHANGED",
+    "replacementText": "1",
+    "elementDescriptors": [
+      {
+        "resourceId": "otp-input-0",
+        "className": "android.widget.EditText"
+      }
+    ]
+  },
+  {
+    "eventType": "VIEW_TEXT_CHANGED",
+    "replacementText": "2",
+    "elementDescriptors": [
+      {
+        "resourceId": "otp-input-1",
+        "className": "android.widget.EditText"
+      }
+    ]
+  },
+  {
+    "eventType": "VIEW_TEXT_CHANGED",
+    "replacementText": "3",
+    "elementDescriptors": [
+      {
+        "resourceId": "otp-input-2",
+        "className": "android.widget.EditText"
+      }
+    ]
+  },
+  {
+    "eventType": "VIEW_TEXT_CHANGED",
+    "replacementText": "4",
+    "elementDescriptors": [
+      {
+        "resourceId": "otp-input-3",
+        "className": "android.widget.EditText"
+      }
+    ]
+  },
+  {
+    "eventType": "VIEW_TEXT_CHANGED",
+    "replacementText": "5",
+    "elementDescriptors": [
+      {
+        "resourceId": "otp-input-4",
+        "className": "android.widget.EditText"
+      }
+    ]
+  },
+  {
+    "eventType": "VIEW_TEXT_CHANGED",
+    "replacementText": "6",
+    "elementDescriptors": [
+      {
+        "resourceId": "otp-input-5",
+        "className": "android.widget.EditText"
+      }
+    ]
+  },
+  {
+    "eventType": "VIEW_CLICKED",
+    "elementDescriptors": [
+      {
+        "resourceId": "verify-otp-btn",
+        "className": "android.view.View",
+        "contentDescription": "Verify & Continue"
+      }
+    ]
+  },
+  {
+    "eventType": "WAIT",
+    "delayTime": 3000
+  }
+]
