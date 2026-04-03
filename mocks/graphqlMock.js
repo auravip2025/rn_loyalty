@@ -70,6 +70,33 @@ export const GET_OFFERS = `
   }
 `;
 
+export const GET_CHAT_SUGGESTIONS = `
+  query GetChatSuggestions {
+    chatSuggestions {
+      id
+      question
+      responseType
+      responseText
+      shops {
+        name
+        rating
+        distance
+        img
+      }
+      featured {
+        title
+        sub
+        img
+      }
+      deals {
+        title
+        price
+        loc
+      }
+    }
+  }
+`;
+
 // MOCK MUTATIONS
 export const DEDUCT_POINTS = `mutation DeductPoints($amount: Int!, $merchant: String!) { deductPoints(amount: $amount, merchant: $merchant) { success wallet { balance } } }`;
 export const EARN_POINTS = `mutation EarnPoints($amount: Int!, $merchant: String!) { earnPoints(amount: $amount, merchant: $merchant) { success wallet { balance } } }`;
@@ -317,7 +344,40 @@ let DB = {
         "GrabFood": [
             { id: 'gf1', title: 'Delivery Pass', price: 9.90, image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200' }
         ]
-    }
+    },
+    chatSuggestions: [
+        {
+            id: 'cs1',
+            question: "where can i get best cake?",
+            responseType: "SHOP_LIST",
+            responseText: "Here are the top-rated cake shops nearby!",
+            shops: [
+                { name: 'Sweet Treats Bakery', rating: 4.8, distance: '0.5km', img: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&q=80' },
+                { name: 'The Cake Room', rating: 4.6, distance: '1.2km', img: 'https://images.unsplash.com/photo-1557308536-ee471ef2c390?w=400&q=80' }
+            ]
+        },
+        {
+            id: 'cs2',
+            question: "Which shop has the best ice kacang or chendol add-on?",
+            responseType: "FEATURED_SHOP",
+            responseText: "I found this hidden gem famous for their traditional Ice Kacang with extra attap chee!",
+            featured: {
+                title: 'Uncle Dessert Shop',
+                sub: 'Best Ice Kacang in Town',
+                img: 'https://images.unsplash.com/photo-1557142046-c704a3adf364?w=400&q=80'
+            }
+        },
+        {
+            id: 'cs3',
+            question: "Find $5 lunch deals + a drink near my MRT?",
+            responseType: "DEAL_LIST",
+            responseText: "Here are some awesome $5 student/lunch deals right next to your MRT station:",
+            deals: [
+                { title: 'Chicken Rice + Lime Juice', price: '$4.50', loc: 'Kopitiam Square' },
+                { title: 'Nasi Lemak Set', price: '$5.00', loc: 'Bagus Food Court' },
+            ]
+        }
+    ]
 };
 
 // SIMULATED HOOKS
@@ -349,6 +409,9 @@ export const useQuery = (query, options = {}) => {
                         storeMenus: JSON.parse(JSON.stringify(DB.storeMenus))
                     });
                     console.log("🛠️ Mock GraphQL GET_OFFERS executed successfully");
+                } else if (query === GET_CHAT_SUGGESTIONS) {
+                    setData({ chatSuggestions: JSON.parse(JSON.stringify(DB.chatSuggestions)) });
+                    console.log("🛠️ Mock GraphQL GET_CHAT_SUGGESTIONS executed successfully");
                 } else {
                     console.warn("🛠️ Mock GraphQL query not found in DB match map: ", query);
                 }

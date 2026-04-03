@@ -95,6 +95,7 @@ export const GET_PROGRAMS = mockClient.GET_PROGRAMS;
 export const GET_WALLET = mockClient.GET_WALLET;
 export const GET_DAILY_QUESTS = mockClient.GET_DAILY_QUESTS;
 export const GET_OFFERS = mockClient.GET_OFFERS;
+export const GET_CHAT_SUGGESTIONS = mockClient.GET_CHAT_SUGGESTIONS;
 export const DEDUCT_POINTS = mockClient.DEDUCT_POINTS;
 export const EARN_POINTS = mockClient.EARN_POINTS;
 
