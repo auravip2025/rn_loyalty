@@ -1,5 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    ArrowLeft,
     ChevronRight,
     Coffee,
     Crown,
@@ -13,8 +13,9 @@ import {
     ToggleRight,
     Zap
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Modal,
     ScrollView,
     StyleSheet,
@@ -23,6 +24,23 @@ import {
     View,
 } from 'react-native';
 import ProgramConfigEditor from '../../components/old_app/merchant/ProgramConfigEditor';
+import { useAuth } from '../../contexts/AuthContext';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+// ─── Program type key ↔ backend type mapping ─────────────────────────────────
+const PROGRAM_TYPE_MAP = {
+    points:   'LOYALTY_POINTS',
+    stamps:   'DIGITAL_STAMPS',
+    wheel:    'WHEEL_OF_FORTUNE',
+    scratch:  'SCRATCH_WIN',
+    tiered:   'TIERED_DISCOUNTS',
+    cashback: 'CASHBACK',
+};
+
+const BACKEND_TO_KEY = Object.fromEntries(
+    Object.entries(PROGRAM_TYPE_MAP).map(([k, v]) => [v, k])
+);
 
 // ─── Program type templates ────────────────────────────────────────────────────
 const PROGRAM_TEMPLATES = [
@@ -140,6 +158,15 @@ const PROGRAM_TEMPLATES = [
     },
 ];
 
+const TEMPLATE_BY_KEY = Object.fromEntries(PROGRAM_TEMPLATES.map(t => [t.key, t]));
+
+// Strip non-serializable / UI-only fields before sending to the backend
+const toApiConfiguration = (formData) => {
+    // eslint-disable-next-line no-unused-vars
+    const { icon, accent, bg, color, badge, badgeColor, id, key, programType, active, name, ...rest } = formData;
+    return rest;
+};
+
 // ─── Program type card ────────────────────────────────────────────────────────
 const ProgramTypeCard = ({ template, onSelect }) => {
     const Icon = template.icon;
@@ -175,7 +202,7 @@ const ActiveProgramRow = ({ program, onEdit, onToggle }) => {
                 <Text style={styles.activeDesc} numberOfLines={1}>{program.desc}</Text>
             </View>
             <TouchableOpacity
-                onPress={(e) => { e.stopPropagation?.(); onToggle(program.id); }}
+                onPress={(e) => { e.stopPropagation?.(); onToggle(program.key); }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
                 {program.active
@@ -189,41 +216,218 @@ const ActiveProgramRow = ({ program, onEdit, onToggle }) => {
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 const MerchantPrograms = () => {
+    const { merchantProfile } = useAuth();
+
+    const [storeId, setStoreId] = useState(null);
     const [activePrograms, setActivePrograms] = useState([]);
+    const [catalogItems, setCatalogItems] = useState([]);
     const [showTypePicker, setShowTypePicker] = useState(false);
     const [editingProgram, setEditingProgram] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState(null);
 
+    // ── Load store & programs on mount ──────────────────────────────────────────
+    useEffect(() => {
+        const merchantId = merchantProfile?.id;
+        if (!merchantId) {
+            setLoading(false);
+            return;
+        }
+        loadPrograms(merchantId);
+    }, [merchantProfile?.id]);
+
+    const getAuthHeaders = async () => {
+        const token = await AsyncStorage.getItem('@dandan_auth_token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+    };
+
+    const loadCatalogItems = async (merchantId) => {
+        try {
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${API_URL}/catalog/rewards/merchant/${merchantId}`, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                // API returns array directly
+                setCatalogItems(Array.isArray(data) ? data : (data.rewards || []));
+            }
+        } catch {
+            // Non-fatal — editor will just show no catalog items
+        }
+    };
+
+    const loadPrograms = async (merchantId) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const headers = await getAuthHeaders();
+
+            // Fetch existing store for this merchant
+            let storeRes = await fetch(`${API_URL}/stores/merchant/${merchantId}`, { headers });
+
+            let store;
+            if (storeRes.status === 404) {
+                // Auto-create store on first visit
+                const createRes = await fetch(`${API_URL}/stores`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        merchantId,
+                        name: merchantProfile?.businessName || 'My Store',
+                        settings: {},
+                    }),
+                });
+                const createData = await createRes.json();
+                if (!createRes.ok) throw new Error(createData.error || 'Failed to create store');
+                store = createData;
+            } else if (!storeRes.ok) {
+                const d = await storeRes.json();
+                throw new Error(d.error || 'Failed to load store');
+            } else {
+                store = await storeRes.json();
+            }
+
+            setStoreId(store.id);
+
+            // Load catalog items in parallel (non-blocking)
+            loadCatalogItems(merchantId);
+
+            // Map backend programConfigs → local program objects
+            if (Array.isArray(store.programConfigs) && store.programConfigs.length > 0) {
+                const programs = store.programConfigs
+                    .map(cfg => {
+                        const key = BACKEND_TO_KEY[cfg.programType];
+                        if (!key) return null;
+                        const template = TEMPLATE_BY_KEY[key];
+                        if (!template) return null;
+                        return {
+                            id: cfg.id,
+                            key,
+                            programType: cfg.programType,
+                            name: template.name,
+                            icon: template.icon,
+                            color: template.color,
+                            accent: template.accent,
+                            bg: template.bg,
+                            badge: template.badge,
+                            badgeColor: template.badgeColor,
+                            active: cfg.isEnabled,
+                            ...(cfg.configuration || {}),
+                        };
+                    })
+                    .filter(Boolean);
+                setActivePrograms(programs);
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ── Select a template to create/edit ───────────────────────────────────────
     const handleSelectTemplate = (template) => {
         setShowTypePicker(false);
-        // Create draft program from template
-        const newProgram = {
-            id: Date.now(),
+        // If program type already configured, open editor for existing one
+        const existing = activePrograms.find(p => p.key === template.key);
+        if (existing) {
+            setEditingProgram(existing);
+            return;
+        }
+        setEditingProgram({
+            id: null,
+            key: template.key,
+            programType: PROGRAM_TYPE_MAP[template.key],
             name: template.name,
             icon: template.icon,
             color: template.color,
             accent: template.accent,
             bg: template.bg,
+            badge: template.badge,
+            badgeColor: template.badgeColor,
             active: true,
             ...template.defaults,
-        };
-        setEditingProgram(newProgram);
-    };
-
-    const handleSaveProgram = (savedProgram) => {
-        setActivePrograms(prev => {
-            const exists = prev.find(p => p.id === savedProgram.id);
-            if (exists) {
-                return prev.map(p => p.id === savedProgram.id ? savedProgram : p);
-            }
-            return [...prev, savedProgram];
         });
-        setEditingProgram(null);
     };
 
-    const handleToggleActive = (id) => {
+    // ── Save program (create or update) ────────────────────────────────────────
+    const handleSaveProgram = async (savedProgram) => {
+        if (!storeId) {
+            setSaveError('Store not initialised yet. Please wait.');
+            return;
+        }
+        setSaving(true);
+        setSaveError(null);
+        try {
+            const headers = await getAuthHeaders();
+            const programType = PROGRAM_TYPE_MAP[savedProgram.key];
+            if (!programType) throw new Error('Unknown program type: ' + savedProgram.key);
+
+            const payload = {
+                isEnabled: savedProgram.active !== false,
+                configuration: toApiConfiguration(savedProgram),
+            };
+
+            const res = await fetch(`${API_URL}/stores/${storeId}/programs/${programType}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to save program');
+
+            // Merge saved data back into local state
+            const persisted = {
+                ...savedProgram,
+                id: data.id || savedProgram.id,
+                programType,
+            };
+
+            setActivePrograms(prev => {
+                const exists = prev.find(p => p.key === savedProgram.key);
+                if (exists) return prev.map(p => p.key === savedProgram.key ? persisted : p);
+                return [...prev, persisted];
+            });
+            setEditingProgram(null);
+        } catch (err) {
+            setSaveError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // ── Toggle program enabled/disabled ────────────────────────────────────────
+    const handleToggleActive = async (key) => {
+        if (!storeId) return;
+
+        // Optimistic UI update
         setActivePrograms(prev =>
-            prev.map(p => p.id === id ? { ...p, active: !p.active } : p)
+            prev.map(p => p.key === key ? { ...p, active: !p.active } : p)
         );
+
+        try {
+            const headers = await getAuthHeaders();
+            const programType = PROGRAM_TYPE_MAP[key];
+            const res = await fetch(`${API_URL}/stores/${storeId}/programs/${programType}/toggle`, {
+                method: 'PATCH',
+                headers,
+            });
+            if (!res.ok) {
+                // Revert optimistic update on failure
+                setActivePrograms(prev =>
+                    prev.map(p => p.key === key ? { ...p, active: !p.active } : p)
+                );
+            }
+        } catch {
+            // Revert on network error
+            setActivePrograms(prev =>
+                prev.map(p => p.key === key ? { ...p, active: !p.active } : p)
+            );
+        }
     };
 
     // ── Editing view ────────────────────────────────────────────────────────────
@@ -232,8 +436,22 @@ const MerchantPrograms = () => {
             <ProgramConfigEditor
                 program={editingProgram}
                 onSave={handleSaveProgram}
-                onBack={() => setEditingProgram(null)}
+                onBack={() => { setEditingProgram(null); setSaveError(null); }}
+                saving={saving}
+                saveError={saveError}
+                catalogItems={catalogItems}
+                merchantId={merchantProfile?.id}
             />
+        );
+    }
+
+    // ── Loading state ───────────────────────────────────────────────────────────
+    if (loading) {
+        return (
+            <View style={styles.centered}>
+                <ActivityIndicator size="large" color="#10b981" />
+                <Text style={styles.loadingText}>Loading your programs…</Text>
+            </View>
         );
     }
 
@@ -253,8 +471,18 @@ const MerchantPrograms = () => {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
+                {/* ── Error banner ── */}
+                {error ? (
+                    <View style={styles.errorBanner}>
+                        <Text style={styles.errorBannerText}>{error}</Text>
+                        <TouchableOpacity onPress={() => merchantProfile?.id && loadPrograms(merchantProfile.id)}>
+                            <Text style={styles.errorRetry}>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : null}
+
                 {/* ── Hero / Create CTA (shown when no programs) ── */}
-                {activePrograms.length === 0 && (
+                {activePrograms.length === 0 && !error && (
                     <View style={styles.emptyHero}>
                         <View style={styles.emptyIconRing}>
                             <Sparkles size={36} color="#10b981" />
@@ -280,7 +508,7 @@ const MerchantPrograms = () => {
                         <View style={styles.activeList}>
                             {activePrograms.map(program => (
                                 <ActiveProgramRow
-                                    key={program.id}
+                                    key={program.key}
                                     program={program}
                                     onEdit={setEditingProgram}
                                     onToggle={handleToggleActive}
@@ -359,6 +587,7 @@ const MerchantPrograms = () => {
                         <ScrollView showsVerticalScrollIndicator={false}>
                             {PROGRAM_TEMPLATES.map(t => {
                                 const Icon = t.icon;
+                                const alreadyAdded = activePrograms.some(p => p.key === t.key);
                                 return (
                                     <TouchableOpacity
                                         key={t.key}
@@ -372,9 +601,15 @@ const MerchantPrograms = () => {
                                             <Text style={styles.pickerName}>{t.name}</Text>
                                             <Text style={styles.pickerDesc}>{t.desc}</Text>
                                         </View>
-                                        <View style={[styles.pickerBadge, { backgroundColor: t.badgeColor + '20' }]}>
-                                            <Text style={[styles.pickerBadgeText, { color: t.badgeColor }]}>{t.badge}</Text>
-                                        </View>
+                                        {alreadyAdded ? (
+                                            <View style={[styles.pickerBadge, { backgroundColor: '#ecfdf5' }]}>
+                                                <Text style={[styles.pickerBadgeText, { color: '#10b981' }]}>Active</Text>
+                                            </View>
+                                        ) : (
+                                            <View style={[styles.pickerBadge, { backgroundColor: t.badgeColor + '20' }]}>
+                                                <Text style={[styles.pickerBadgeText, { color: t.badgeColor }]}>{t.badge}</Text>
+                                            </View>
+                                        )}
                                     </TouchableOpacity>
                                 );
                             })}
@@ -389,6 +624,19 @@ const MerchantPrograms = () => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
 
+    // Loading / centered
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, backgroundColor: '#f8fafc' },
+    loadingText: { fontSize: 13, color: '#64748b', fontWeight: '600' },
+
+    // Error banner
+    errorBanner: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        backgroundColor: '#fef2f2', borderRadius: 12, padding: 12,
+        marginBottom: 16, borderWidth: 1, borderColor: '#fecaca',
+    },
+    errorBannerText: { flex: 1, fontSize: 12, color: '#dc2626', fontWeight: '600' },
+    errorRetry: { fontSize: 12, color: '#4f46e5', fontWeight: '700', marginLeft: 8 },
+
     // Header
     header: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -397,7 +645,6 @@ const styles = StyleSheet.create({
     },
     headerTitle: { fontSize: 17, fontWeight: '900', color: '#0f172a' },
     headerSub: { fontSize: 11, color: '#94a3b8', fontWeight: '600', marginTop: 2 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' },
     addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center' },
 
     scrollContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 48 },
@@ -472,9 +719,6 @@ const styles = StyleSheet.create({
     pickerDesc: { fontSize: 11, color: '#64748b', lineHeight: 16 },
     pickerBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
     pickerBadgeText: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
-
-    // Layers icon (unused but kept for import clean)
-    layersBg: {},
 });
 
 export default MerchantPrograms;
