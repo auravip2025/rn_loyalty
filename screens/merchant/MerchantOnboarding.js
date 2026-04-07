@@ -93,6 +93,7 @@ const MerchantOnboarding = ({ onComplete }) => {
     const [businessName, setBusinessName] = useState('');
     const [businessType, setBusinessType] = useState('');
     const [address, setAddress] = useState('');
+    const [phone, setPhone] = useState('');
     const [taxId, setTaxId] = useState('');
 
     // Step 2 data
@@ -107,6 +108,7 @@ const MerchantOnboarding = ({ onComplete }) => {
         if (!businessName.trim()) { Alert.alert('Required', 'Please enter your business name.'); return false; }
         if (!businessType) { Alert.alert('Required', 'Please select a business type.'); return false; }
         if (!address.trim()) { Alert.alert('Required', 'Please enter your business address.'); return false; }
+        if (!phone.trim()) { Alert.alert('Required', 'Please enter your phone number.'); return false; }
         if (!taxId.trim()) { Alert.alert('Required', 'Please enter your Tax ID.'); return false; }
         return true;
     };
@@ -129,6 +131,7 @@ const MerchantOnboarding = ({ onComplete }) => {
                 businessName,
                 businessType,
                 address,
+                phone,
                 taxId,
                 licenseUploaded,
                 additionalUploaded,
@@ -233,7 +236,8 @@ const MerchantOnboarding = ({ onComplete }) => {
                         </View>
 
                         <Field label="Business Address" icon={MapPin} value={address} onChangeText={setAddress} placeholder="123 Main St, City, Country" multiline />
-                        <Field label="Tax ID / Business Registration No." icon={FileText} value={taxId} onChangeText={setTaxId} placeholder="XX-XXXXXXX" keyboardType="default" />
+                        <Field label="Contact Phone Number" icon={Building2} value={phone} onChangeText={setPhone} placeholder="+65 1234 5678" keyboardType="phone-pad" />
+                        <Field label="Tax ID / UEN No." icon={FileText} value={taxId} onChangeText={setTaxId} placeholder="XX-XXXXXXX" keyboardType="default" />
                     </View>
                 )}
 
@@ -276,6 +280,7 @@ const MerchantOnboarding = ({ onComplete }) => {
                             <SummaryRow label="Business Name" value={businessName} />
                             <SummaryRow label="Business Type" value={businessType} />
                             <SummaryRow label="Address" value={address} />
+                            <SummaryRow label="Phone" value={phone} />
                             <SummaryRow label="Tax ID" value={taxId} />
                         </View>
 

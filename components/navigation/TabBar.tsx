@@ -33,10 +33,10 @@ export function TabBar({ state, descriptors, navigation, activeTintColor = '#4f4
     const containerWidth = useSharedValue(SCREEN_WIDTH - 40);
     const buttonWidth = useDerivedValue(() => containerWidth.value / activeRoutes.length);
 
-    const INDICATOR_SIZE = 64;
-    const TABBAR_HEIGHT = 64;
-    const JET_OUT_AMOUNT = 24;
-    const INDICATOR_TOP = -JET_OUT_AMOUNT;
+    const INDICATOR_SIZE = 40;
+    const TABBAR_HEIGHT = 56;
+    const JET_OUT_AMOUNT = 0;
+    const INDICATOR_TOP = (TABBAR_HEIGHT - INDICATOR_SIZE) / 2;
 
     const onTabbarLayout = (e: LayoutChangeEvent) => {
         containerWidth.value = e.nativeEvent.layout.width;
@@ -68,7 +68,10 @@ export function TabBar({ state, descriptors, navigation, activeTintColor = '#4f4
     }
 
     return (
-        <View onLayout={onTabbarLayout} style={[styles.tabbar, { bottom: insets.bottom + 10 }]}>
+        // Outer wrapper is IN the layout flow — React Navigation reserves this height for all screens.
+        // Inner pill is visually floating via margin/padding, not absolute positioning.
+        <View style={[styles.tabbarWrapper, { paddingBottom: insets.bottom > 0 ? insets.bottom - 16 : 4 }]}>
+        <View onLayout={onTabbarLayout} style={styles.tabbar}>
             {/* The sliding background indicator */}
             <Animated.View style={[
                 styles.activeIndicator,
@@ -78,11 +81,6 @@ export function TabBar({ state, descriptors, navigation, activeTintColor = '#4f4
                     borderRadius: INDICATOR_SIZE / 2,
                     top: INDICATOR_TOP,
                     backgroundColor: activeTintColor,
-                    shadowColor: activeTintColor,
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowRadius: 12,
-                    shadowOpacity: 0.4,
-                    elevation: 8,
                 },
                 animatedIndicatorStyle
             ]} />
@@ -125,12 +123,11 @@ export function TabBar({ state, descriptors, navigation, activeTintColor = '#4f4
                 );
             })}
         </View>
+        </View>
     );
 }
-
 function TabIcon({ index, tabPositionX, icon, indicatorTop, indicatorSize, tabbarHeight }: any) {
-    // const targetY = indicatorTop + (indicatorSize / 2) - (tabbarHeight / 2);
-    const targetY = indicatorTop + Math.abs(24 / 4);
+    const targetY = 0;
 
     const animatedIconStyle = useAnimatedStyle(() => {
         // Calculate "proximity" to the indicator (0 to 1)
@@ -144,8 +141,8 @@ function TabIcon({ index, tabPositionX, icon, indicatorTop, indicatorSize, tabba
             Extrapolation.CLAMP
         );
 
-        const scale = interpolate(progress, [0, 1], [1, 1.25]);
-        const translateY = interpolate(progress, [0, 1], [0, targetY]);
+        const scale = interpolate(progress, [0, 1], [1, 1.1]);
+        const translateY = 0;
         const translateX = interpolate(progress, [0, 1], [0, 0]);
         const opacity = interpolate(progress, [0, 0.8, 1], [0.5, 0.9, 1]);
 
@@ -216,29 +213,20 @@ function AnimatedIconWrapper({ index, tabPositionX, icon }: any) {
 }
 
 const styles = StyleSheet.create({
+    // Outer wrapper sits in the layout flow — React Navigation reserves its height.
+    // paddingBottom is set dynamically via insets to clear the home indicator.
+    tabbarWrapper: {
+        backgroundColor: '#ffffff',
+        borderTopWidth: 1,
+        borderTopColor: '#f1f5f9',
+    },
+    // Inner pill is the visual floating bar.
     tabbar: {
-        position: 'absolute',
-        left: 20,
-        right: 20,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#ffffff',
-        height: 64,
-        borderRadius: 32,
-        ...Platform.select({
-            ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 10 },
-                shadowRadius: 20,
-                shadowOpacity: 0.1,
-            },
-            android: {
-                elevation: 10,
-            },
-        }),
-        borderWidth: 1,
-        borderColor: 'rgba(241, 245, 249, 0.8)',
+        height: 56,
     },
     tabbarItem: {
         flex: 1,

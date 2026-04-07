@@ -10,6 +10,7 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle } from 'lucide-react-native';
 import {
   ArrowLeft,
@@ -33,7 +34,7 @@ import Button from '../common/Button';
 import Input from '../common/Input';
 
 // ─── Catalog Item Picker Modal ────────────────────────────────────────────────
-const CatalogItemPicker = ({ visible, items, onSelect, onClose }) => (
+const CatalogItemPicker = ({ visible, items, onSelect, onClose, onGoToCatalog }) => (
   <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
     <TouchableOpacity style={pickerStyles.overlay} activeOpacity={1} onPress={onClose}>
       <View style={pickerStyles.sheet}>
@@ -41,9 +42,19 @@ const CatalogItemPicker = ({ visible, items, onSelect, onClose }) => (
         <Text style={pickerStyles.title}>Select Reward Item</Text>
         {items.length === 0 ? (
           <View style={pickerStyles.empty}>
-            <Gift size={32} color="#94a3b8" />
-            <Text style={pickerStyles.emptyText}>No catalog items yet.</Text>
-            <Text style={pickerStyles.emptySubText}>Create reward items in the Catalog section first.</Text>
+            <View style={pickerStyles.emptyIconRing}>
+              <Gift size={28} color="#6366f1" />
+            </View>
+            <Text style={pickerStyles.emptyText}>No Catalog Items Yet</Text>
+            <Text style={pickerStyles.emptySubText}>
+              You need to create reward items in the Catalog tab before you can link them to your programs.
+            </Text>
+            <TouchableOpacity
+              style={pickerStyles.emptyBtn}
+              onPress={() => { onClose(); onGoToCatalog?.(); }}
+            >
+              <Text style={pickerStyles.emptyBtnText}>Go to Catalog →</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
@@ -76,9 +87,18 @@ const pickerStyles = StyleSheet.create({
   },
   handle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   title: { fontSize: 16, fontWeight: '900', color: '#0f172a', marginBottom: 16 },
-  empty: { alignItems: 'center', paddingVertical: 32, gap: 8 },
-  emptyText: { fontSize: 14, fontWeight: '700', color: '#64748b' },
-  emptySubText: { fontSize: 12, color: '#94a3b8', textAlign: 'center' },
+  empty: { alignItems: 'center', paddingVertical: 28, gap: 10, paddingHorizontal: 8 },
+  emptyIconRing: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center',
+  },
+  emptyText: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
+  emptySubText: { fontSize: 12, color: '#64748b', textAlign: 'center', lineHeight: 18 },
+  emptyBtn: {
+    marginTop: 4, backgroundColor: '#6366f1', paddingHorizontal: 24,
+    paddingVertical: 11, borderRadius: 12,
+  },
+  emptyBtnText: { fontSize: 13, fontWeight: '900', color: '#fff' },
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
@@ -97,7 +117,9 @@ const ProgramConfigEditor = ({
   saveError = null,
   catalogItems = [],
   merchantId,
+  onGoToCatalog,
 }) => {
+  const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState({
     tierDiscounts: { Bronze: '5%', Silver: '10%', Gold: '15%', Platinum: '20%' },
     segments: program.segments || [
@@ -231,7 +253,9 @@ const ProgramConfigEditor = ({
                 >
                   <Gift size={12} color="#6366f1" />
                   <Text style={styles.catalogPickerText} numberOfLines={1}>
-                    {seg.catalogItemId ? catalogItemName(seg.catalogItemId) : 'Link item'}
+                    {seg.catalogItemId 
+                      ? catalogItemName(seg.catalogItemId) 
+                      : (catalogItems.length === 0 ? 'Create in Catalog' : 'Link item')}
                   </Text>
                 </TouchableOpacity>
               ) : (
@@ -333,9 +357,16 @@ const ProgramConfigEditor = ({
       </View>
 
       {(formData.redeemableItemIds || []).length === 0 ? (
-        <TouchableOpacity style={styles.redeemEmpty} onPress={openRedeemablePicker}>
-          <Gift size={16} color="#94a3b8" />
-          <Text style={styles.redeemEmptyText}>Tap to link catalog items customers can redeem points for</Text>
+        <TouchableOpacity 
+          style={[styles.redeemEmpty, catalogItems.length === 0 && styles.redeemEmptyWarning]} 
+          onPress={catalogItems.length === 0 ? onGoToCatalog : openRedeemablePicker}
+        >
+          <Gift size={16} color={catalogItems.length === 0 ? "#f59e0b" : "#94a3b8"} />
+          <Text style={[styles.redeemEmptyText, catalogItems.length === 0 && styles.redeemEmptyTextWarning]}>
+            {catalogItems.length === 0 
+              ? "You haven't created any rewards yet. Go to Catalog to create your first item." 
+              : "Tap to link catalog items customers can redeem points for"}
+          </Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.redeemList}>
@@ -374,9 +405,16 @@ const ProgramConfigEditor = ({
       </View>
 
       {(formData.redeemableItemIds || []).length === 0 ? (
-        <TouchableOpacity style={styles.redeemEmpty} onPress={openRedeemablePicker}>
-          <Gift size={16} color="#94a3b8" />
-          <Text style={styles.redeemEmptyText}>Link the catalog item customers get when the stamp card is full</Text>
+        <TouchableOpacity 
+          style={[styles.redeemEmpty, catalogItems.length === 0 && styles.redeemEmptyWarning]} 
+          onPress={catalogItems.length === 0 ? onGoToCatalog : openRedeemablePicker}
+        >
+          <Gift size={16} color={catalogItems.length === 0 ? "#f59e0b" : "#94a3b8"} />
+          <Text style={[styles.redeemEmptyText, catalogItems.length === 0 && styles.redeemEmptyTextWarning]}>
+            {catalogItems.length === 0 
+              ? "No catalog items found. Create your reward item in the Catalog tab first." 
+              : "Link the catalog item customers get when the stamp card is full"}
+          </Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.redeemList}>
@@ -412,7 +450,8 @@ const ProgramConfigEditor = ({
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={[styles.safeWrapper, { paddingTop: insets.top }]}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <ArrowLeft size={20} color="#0f172a" />
@@ -490,20 +529,25 @@ const ProgramConfigEditor = ({
         items={catalogItems}
         onSelect={handlePickerSelect}
         onClose={() => { setPickerVisible(false); setPickerTarget(null); }}
+        onGoToCatalog={onGoToCatalog}
       />
     </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  safeWrapper: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
     flex: 1,
-    paddingBottom: 20,
     marginHorizontal: -12,
   },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginBottom: 16, marginTop: 0, paddingHorizontal: 12,
+    marginBottom: 16, marginTop: 8, paddingHorizontal: 12,
   },
   backButton: {
     padding: 8, borderRadius: 999, width: 40, height: 40,
@@ -581,7 +625,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0',
     borderRadius: 10, padding: 12, borderStyle: 'dashed',
   },
+  redeemEmptyWarning: {
+    backgroundColor: '#fffbeb', borderColor: '#f59e0b',
+  },
   redeemEmptyText: { flex: 1, fontSize: 11, color: '#94a3b8', fontStyle: 'italic' },
+  redeemEmptyTextWarning: { color: '#92400e', fontWeight: '600' },
   redeemList: {
     backgroundColor: '#f8fafc', borderRadius: 10,
     borderWidth: 1, borderColor: '#e2e8f0', overflow: 'hidden',

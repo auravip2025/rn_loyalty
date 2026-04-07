@@ -14,6 +14,7 @@ import {
   Users
 } from 'lucide-react-native';
 import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dimensions,
   ScrollView,
@@ -114,6 +115,7 @@ const MetricDetail = ({ metric, onBack }) => {
 };
 
 const MerchantAnalytics = () => {
+  const insets = useSafeAreaInsets();
   const [selectedReward, setSelectedReward] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState(null);
   const [prompt, setPrompt] = useState('');
@@ -180,7 +182,7 @@ const MerchantAnalytics = () => {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}>
+      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top }]}>
 
       {/* Property Overview Card */}
       <PropertyOverview />
@@ -300,7 +302,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 80,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   programsBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

@@ -1,3 +1,4 @@
+"use client";
 import React, { createContext, useContext } from 'react';
 import { DEDUCT_POINTS, EARN_POINTS, GET_WALLET, useMutation, useQuery } from '../api/client';
 

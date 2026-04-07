@@ -30,6 +30,9 @@ const MAPPING = {
   'building.2.fill': 'storefront',
   'list.bullet': 'format-list-bulleted',
   'gear': 'settings',
+  'storefront': 'store',
+  'gift.fill': 'card-giftcard',
+  'qrcode.viewfinder': 'qr-code-scanner',
 } as IconMapping;
 
 /**

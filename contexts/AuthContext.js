@@ -68,13 +68,8 @@ export const AuthProvider = ({ children }) => {
   const loginWithOtp = async (email, selectedRole, isNewUser = false) => {
     try {
       setLoading(true);
-      const mockUser = {
-        id: Date.now(),
-        name: selectedRole === 'customer' ? 'Alex Johnson' : 'The Coffee House',
-        email,
-        isNew: isNewUser,
-      };
-      await AsyncStorage.setItem('@dandan_user', JSON.stringify(mockUser));
+      const sessionUser = { id: Date.now(), email, isNew: isNewUser };
+      await AsyncStorage.setItem('@dandan_user', JSON.stringify(sessionUser));
       await AsyncStorage.setItem('@dandan_role', selectedRole);
 
       // New merchants start at 'pending' (needs onboarding)
@@ -83,9 +78,25 @@ export const AuthProvider = ({ children }) => {
         setOnboardingStatus('pending');
       }
 
-      setUser(mockUser);
+      setUser(sessionUser);
       setRole(selectedRole);
       setIsAuthenticated(true);
+
+      // Load merchant profile from AsyncStorage — LoginScreen may have just
+      // written it from the verify-otp response before calling this function
+      if (selectedRole === 'merchant') {
+        const stored = await AsyncStorage.getItem('@dandan_merchant_profile');
+        if (stored) {
+          const profile = JSON.parse(stored);
+          setMerchantProfile(profile);
+          // Existing merchants are active — mark onboarding complete
+          if (!isNewUser) {
+            setOnboardingStatus('approved');
+            await AsyncStorage.setItem('@dandan_onboarding_status', 'approved');
+          }
+        }
+      }
+
       return { success: true, isNew: isNewUser };
     } catch (error) {
       return { success: false, error: error.message };
