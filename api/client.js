@@ -130,19 +130,21 @@ export const client = new ApolloClient({
 });
 
 // Toggle environment driven by Expo Config (from .env)
-const isMock = false;
+const isMock = process.env.EXPO_PUBLIC_ENV === 'mock';
 
 console.log(`🌐 App started in ${process.env.EXPO_PUBLIC_ENV} environment, connecting to ${GRAPHQL_URL}`);
 
 export const IS_MOCK = isMock;
 
-// Native Apollo Hooks
+// Hooks — delegate to mock or real Apollo based on environment
 export const useQuery = (query, options = {}) => {
+  if (isMock) return mockClient.useQuery(query, options);
   const gqlQuery = typeof query === 'string' ? gql`${query}` : query;
   return useApolloQuery(gqlQuery, options);
 };
 
 export const useMutation = (mutation, options = {}) => {
+  if (isMock) return mockClient.useMutation(mutation, options);
   const gqlMutation = typeof mutation === 'string' ? gql`${mutation}` : mutation;
   return useApolloMutation(gqlMutation, options);
 };
@@ -154,6 +156,7 @@ export const GET_PROGRAMS = mockClient.GET_PROGRAMS;
 export const GET_WALLET = mockClient.GET_WALLET;
 export const GET_DAILY_QUESTS = mockClient.GET_DAILY_QUESTS;
 export const GET_OFFERS = mockClient.GET_OFFERS;
+export const GET_CHAT_SUGGESTIONS = mockClient.GET_CHAT_SUGGESTIONS;
 export const DEDUCT_POINTS = mockClient.DEDUCT_POINTS;
 export const EARN_POINTS = mockClient.EARN_POINTS;
 

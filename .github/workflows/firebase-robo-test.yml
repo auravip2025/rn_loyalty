@@ -1,0 +1,141 @@
+name: Firebase Robo Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─────────────────────────────────────────────
+  # ANDROID ROBO TEST
+  # ─────────────────────────────────────────────
+  robo-android:
+    name: Android Robo Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup Java (for Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo prebuild (Android)
+        run: npx expo prebuild --platform android --clean --no-install
+        env:
+          EXPO_PUBLIC_ENV: mock
+          EXPO_PUBLIC_GRAPHQL_URL: ${{ secrets.GRAPHQL_URL }}
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+        env:
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Firebase Robo Test - Android
+        run: |
+          gcloud firebase test android run \
+            --type robo \
+            --app android/app/build/outputs/apk/debug/app-debug.apk \
+            --robo-script firebase/robo_script.json \
+            --device model=Pixel6,version=33,locale=en,orientation=portrait \
+            --device model=Pixel4a,version=30,locale=en,orientation=portrait \
+            --robo-directives text:email-input=alex@dandan.io \
+            --timeout 300s \
+            --results-bucket gs://${{ secrets.FIREBASE_TEST_BUCKET }} \
+            --results-dir "robo-android-${{ github.run_id }}" \
+            --no-record-video
+
+  # ─────────────────────────────────────────────
+  # iOS ROBO TEST
+  # ─────────────────────────────────────────────
+  robo-ios:
+    name: iOS Robo Test
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods
+
+      - name: Expo prebuild (iOS)
+        run: npx expo prebuild --platform ios --clean --no-install
+        env:
+          EXPO_PUBLIC_ENV: mock
+          EXPO_PUBLIC_GRAPHQL_URL: ${{ secrets.GRAPHQL_URL }}
+
+      - name: Install pods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build IPA for Firebase Test Lab
+        run: |
+          xcodebuild build-for-testing \
+            -workspace ios/rn_reanimated.xcworkspace \
+            -scheme rn_reanimated \
+            -sdk iphoneos \
+            -configuration Debug \
+            -derivedDataPath ios/build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+          # Zip the app for Firebase
+          cd ios/build/Build/Products
+          zip -r ../../../../firebase/ios_robo.zip \
+            Debug-iphoneos/rn_reanimated.app
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Firebase Robo Test - iOS
+        run: |
+          gcloud firebase test ios run \
+            --test firebase/ios_robo.zip \
+            --device model=iphone14pro,version=16.6 \
+            --device model=iphone13,version=15.5 \
+            --timeout 300s \
+            --results-bucket gs://${{ secrets.FIREBASE_TEST_BUCKET }} \
+            --results-dir "robo-ios-${{ github.run_id }}"

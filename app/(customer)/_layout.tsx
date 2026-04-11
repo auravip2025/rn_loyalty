@@ -49,10 +49,10 @@ export default function CustomerLayout() {
                 }}
             />
             <Tabs.Screen
-                name="stats"
+                name="chat"
                 options={{
-                    title: 'Stats',
-                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
+                    title: 'Chat',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
                 }}
             />
             <Tabs.Screen
@@ -88,6 +88,12 @@ export default function CustomerLayout() {
             />
             <Tabs.Screen
                 name="rewards"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="stats"
                 options={{
                     href: null,
                 }}

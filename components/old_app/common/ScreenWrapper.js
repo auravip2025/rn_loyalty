@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+/** @type {any} */
 const ScreenWrapper = forwardRef(({
     children,
     scroll = false,

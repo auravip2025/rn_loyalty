@@ -9,15 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { IS_MOCK } from '../../api/client';
+import { fetchApi, IS_MOCK, MOCK_OTP } from '../../api/restClient';
 import Button from '../../components/old_app/common/Button';
 import Input from '../../components/old_app/common/Input';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Mock OTP for demo
-const MOCK_OTP = '123456';
+// MOCK_OTP is imported from restClient (sourced from restMock) so it stays in sync
 
-const MOCK_EMAILS = {
+const PLACEHOLDER_EMAILS = {
   customer: 'alex@dandan.io',
   merchant: 'merchant@coffeehouse.com',
 };
@@ -49,13 +48,13 @@ const LoginScreen = () => {
     setLoading(true);
     try {
       const endpoint = activeRole === 'customer' ? '/users/auth/otp' : '/merchants/auth/request-otp';
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetchApi(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           email: email.toLowerCase(),
-          mode: isNewUser ? 'register' : 'login'
-        })
+          mode: isNewUser ? 'register' : 'login',
+        }),
       });
       const data = await response.json();
 
@@ -85,14 +84,14 @@ const LoginScreen = () => {
     setLoading(true);
     try {
       const endpoint = activeRole === 'customer' ? '/users/auth/verify' : '/merchants/auth/verify-otp';
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetchApi(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.toLowerCase(),
           otp: entered,
           mode: isNewUser ? 'register' : 'login',
-        })
+        }),
       });
       const res = await response.json();
 
@@ -109,13 +108,13 @@ const LoginScreen = () => {
         // MerchantPrograms can use merchantProfile.id immediately
         if (activeRole === 'merchant' && res.merchant) {
           const profile = {
-            id:           res.merchant.id,
+            id: res.merchant.id,
             businessName: res.merchant.companyName || res.merchant.name,
             businessType: res.merchant.category,
-            address:      res.merchant.address,
-            phone:        res.merchant.phone,
-            email:        res.merchant.email,
-            status:       res.merchant.status,
+            address: res.merchant.address,
+            phone: res.merchant.phone,
+            email: res.merchant.email,
+            status: res.merchant.status,
           };
           await AsyncStorage.setItem('@dandan_merchant_profile', JSON.stringify(profile));
         }
@@ -124,7 +123,7 @@ const LoginScreen = () => {
 
         // Use role from server response, fallback to selected role
         const userRole = res.user?.role || (activeRole === 'merchant' ? 'merchant' : activeRole);
-        const newFlag  = res.isNewMerchant ?? res.isNewUser ?? isNewUser;
+        const newFlag = res.isNewMerchant ?? res.isNewUser ?? isNewUser;
 
         const loginResult = await loginWithOtp(
           (res.user?.email || res.merchant?.email || email).toLowerCase(),
@@ -220,10 +219,11 @@ const LoginScreen = () => {
             <Input
               label="Email Address"
               icon={Mail}
-              placeholder={MOCK_EMAILS[activeRole]}
+              placeholder={PLACEHOLDER_EMAILS[activeRole]}
               value={email}
               onChange={(val) => { setEmail(val); if (emailError) setEmailError(''); }}
               autoFocus
+              testID="email-input"
             />
             <Button
               onPress={handleSendOtp}
@@ -231,6 +231,7 @@ const LoginScreen = () => {
               style={styles.submitButton}
               loading={loading}
               disabled={loading}
+              testID="send-otp-btn"
             >
               {isNewUser ? 'Register with OTP' : 'Send OTP'}
               <ArrowRight size={20} color="#ffffff" />
@@ -284,6 +285,8 @@ const LoginScreen = () => {
                   textAlign="center"
                   autoFocus={i === 0}
                   selectTextOnFocus
+                  testID={`otp-input-${i}`}
+                  accessibilityLabel={`OTP digit ${i + 1}`}
                 />
               ))}
             </View>
@@ -298,6 +301,7 @@ const LoginScreen = () => {
               style={styles.submitButton}
               disabled={loading}
               loading={loading}
+              testID="verify-otp-btn"
             >
               Verify & Continue
               <ArrowRight size={20} color="#ffffff" />
