@@ -21,7 +21,6 @@ import React, { useState } from 'react';
 import {
   Alert,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,6 +29,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 // ─── Event type config ────────────────────────────────────────────────────────
 const EVENT_TYPES = [
@@ -312,7 +312,6 @@ const CampaignForm = ({ campaign, onSave, onBack }) => {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const MerchantCampaigns = ({ visible, onClose }) => {
-  const insets = useSafeAreaInsets();
   const [view, setView] = useState('list'); // 'list' | 'form'
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [campaigns, setCampaigns] = useState([
@@ -367,7 +366,7 @@ const MerchantCampaigns = ({ visible, onClose }) => {
       {view === 'form' ? (
         <CampaignForm campaign={editingCampaign} onSave={handleSave} onBack={() => { setView('list'); setEditingCampaign(null); }} />
       ) : (
-        <SafeAreaView style={styles.screen}>
+        <ScreenWrapper backgroundColor="#f8fafc" paddingHorizontal={0}>
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.backBtn}>
@@ -431,7 +430,7 @@ const MerchantCampaigns = ({ visible, onClose }) => {
               })}
             </View>
           </ScrollView>
-        </SafeAreaView>
+        </ScreenWrapper>
       )}
     </Modal>
   );

@@ -21,6 +21,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 
 const BUSINESS_TYPES = ['Restaurant', 'Cafe', 'Retail', 'Salon & Beauty', 'Gym & Fitness', 'Entertainment', 'Other'];
@@ -83,6 +85,7 @@ const SummaryRow = ({ label, value }) => (
 
 const MerchantOnboarding = ({ onComplete }) => {
     const { saveMerchantProfile, onboardingStatus } = useAuth();
+    const insets = useSafeAreaInsets();
 
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -147,7 +150,7 @@ const MerchantOnboarding = ({ onComplete }) => {
     // ── Success / Under Review State ───────────────────────────────────────────
     if (submitted) {
         return (
-            <View style={styles.pendingContainer}>
+            <View style={[styles.pendingContainer, { paddingTop: insets.top }]}>
                 <View style={styles.pendingIconRing}>
                     <AlertCircle size={56} color="#f59e0b" />
                 </View>
@@ -172,9 +175,8 @@ const MerchantOnboarding = ({ onComplete }) => {
     }
 
     return (
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
+        <ScreenWrapper backgroundColor="#ffffff" paddingHorizontal={0} >
+            <View style={[styles.header]}>
                 {step > 1 ? (
                     <TouchableOpacity onPress={() => setStep(s => s - 1)} style={styles.backBtn}>
                         <ArrowLeft size={20} color="#0f172a" />
@@ -341,7 +343,7 @@ const MerchantOnboarding = ({ onComplete }) => {
                     </View>
                 </TouchableOpacity>
             </Modal>
-        </View>
+        </ScreenWrapper>
     );
 };
 

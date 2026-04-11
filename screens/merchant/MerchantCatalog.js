@@ -1,28 +1,30 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-    Award,
     Gift,
+    Leaf,
     Package,
     Plus,
     Settings,
-    Leaf,
-    Trash2,
+    Trash2
 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Animated,
     Modal,
+    PanResponder,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import Badge from '../../components/old_app/common/Badge';
 import Card from '../../components/old_app/common/Card';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
@@ -36,7 +38,38 @@ const typeIcon = (type) => {
 // ─── Create / Edit Modal ──────────────────────────────────────────────────────
 const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
     const isEdit = !!reward?.id;
-    const insets = useSafeAreaInsets();
+    const translateY = useRef(new Animated.Value(0)).current;
+
+    // Reset position every time modal opens
+    useEffect(() => {
+        if (visible) translateY.setValue(0);
+    }, [visible]);
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+            onPanResponderMove: (_, { dy }) => {
+                if (dy > 0) translateY.setValue(dy);
+            },
+            onPanResponderRelease: (_, { dy, vy }) => {
+                if (dy > 100 || vy > 0.5) {
+                    Animated.timing(translateY, {
+                        toValue: 700,
+                        duration: 220,
+                        useNativeDriver: true,
+                    }).start(() => {
+                        translateY.setValue(0);
+                        onClose();
+                    });
+                } else {
+                    Animated.spring(translateY, {
+                        toValue: 0,
+                        useNativeDriver: true,
+                    }).start();
+                }
+            },
+        })
+    ).current;
 
     const [form, setForm] = useState({
         name: '',
@@ -152,9 +185,21 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={modalStyles.overlay}>
-                <View style={[modalStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
-                    <View style={modalStyles.sheetHandle} />
+            {/* Tap dark backdrop to close */}
+            <TouchableWithoutFeedback onPress={onClose}>
+                <View style={modalStyles.overlay}>
+                    {/* Stop touch propagation so taps inside sheet don't close it */}
+                    <TouchableWithoutFeedback>
+                        <Animated.View
+                            style={[modalStyles.sheet, { transform: [{ translateY }] }]}
+                        >
+                            {/* Draggable handle — pan responder lives here */}
+                            <View
+                                style={modalStyles.sheetHandleHitArea}
+                                {...panResponder.panHandlers}
+                            >
+                                <View style={modalStyles.sheetHandle} />
+                            </View>
                     <Text style={modalStyles.sheetTitle}>{isEdit ? 'Edit Reward' : 'New Reward Item'}</Text>
 
                     <ScrollView showsVerticalScrollIndicator={false} style={modalStyles.scroll}>
@@ -226,8 +271,10 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                             }
                         </TouchableOpacity>
                     </View>
+                        </Animated.View>
+                    </TouchableWithoutFeedback>
                 </View>
-            </View>
+            </TouchableWithoutFeedback>
         </Modal>
     );
 };
@@ -236,9 +283,9 @@ const modalStyles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: {
         backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        paddingTop: 12, paddingHorizontal: 20, maxHeight: '92%',
-        // paddingBottom set dynamically via insets
+        paddingHorizontal: 20, maxHeight: '92%',
     },
+    sheetHandleHitArea: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
     sheetHandle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
     sheetTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a', marginBottom: 16 },
     scroll: { maxHeight: 480 },
@@ -271,7 +318,6 @@ const modalStyles = StyleSheet.create({
 const MerchantCatalog = () => {
     const { merchantProfile } = useAuth();
     const merchantId = merchantProfile?.id;
-    const insets = useSafeAreaInsets();
 
     const [rewards, setRewards] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -312,7 +358,7 @@ const MerchantCatalog = () => {
     const handleSave = (saved, isEdit) => {
         setRewards(prev =>
             isEdit ? prev.map(r => r.id === saved.id ? saved : r)
-                   : [...prev, saved]
+                : [...prev, saved]
         );
         setModalVisible(false);
     };
@@ -373,9 +419,8 @@ const MerchantCatalog = () => {
     }
 
     return (
-        <View style={styles.container}>
-            {/* Fixed header — sits above the scroll, respects status bar */}
-            <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
+        <ScreenWrapper backgroundColor="#f8fafc" paddingHorizontal={0}>
+            <View style={styles.header}>
                 <View>
                     <Text style={styles.title}>Reward Catalog</Text>
                     <Text style={styles.subtitle}>{rewards.length} item{rewards.length !== 1 ? 's' : ''}</Text>
@@ -496,7 +541,7 @@ const MerchantCatalog = () => {
                 onSave={handleSave}
                 onClose={() => setModalVisible(false)}
             />
-        </View>
+        </ScreenWrapper>
     );
 };
 

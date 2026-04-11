@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 import MerchantCampaigns from './MerchantCampaigns';
 
@@ -95,7 +96,6 @@ const notifStyles = StyleSheet.create({
 });
 
 const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) => {
-  const insets = useSafeAreaInsets();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCampaigns, setShowCampaigns] = useState(false);
   const { onboardingStatus } = useAuth();
@@ -150,9 +150,11 @@ const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) =>
 
   return (
     <>
-    <ScrollView
-      style={[styles.container, isDark && styles.containerDark]}
-      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top }]}>
+    <ScreenWrapper
+      scroll
+      contentContainerStyle={styles.contentContainer}
+      style={isDark && styles.containerDark}
+    >
 
       <View style={styles.profileSection}>
         <View style={styles.logoContainer}>
@@ -198,7 +200,7 @@ const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) =>
         <LogOut size={18} color="#ffffff" />
         <Text style={styles.logoutText}>Sign Out</Text>
       </Button>
-    </ScrollView>
+    </ScreenWrapper>
       <NotificationsModal visible={showNotifications} onClose={() => setShowNotifications(false)} />
       <MerchantCampaigns visible={showCampaigns} onClose={() => setShowCampaigns(false)} />
     </>

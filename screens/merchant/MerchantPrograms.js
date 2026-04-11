@@ -29,6 +29,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProgramConfigEditor from '../../components/old_app/merchant/ProgramConfigEditor';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
@@ -228,7 +229,6 @@ const ProgramRow = ({ cfg, onEdit, onToggle }) => {
 const MerchantPrograms = () => {
     const { merchantProfile } = useAuth();
     const merchantId = merchantProfile?.id;
-    const insets = useSafeAreaInsets();
     const router = useRouter();
 
     // ── View state machine: 'stores' | 'programs' | 'editor' ────────────────
@@ -497,9 +497,9 @@ const MerchantPrograms = () => {
         const activeCount = configs.filter(c => c.isEnabled).length;
 
         return (
-            <View style={styles.container}>
+            <ScreenWrapper backgroundColor="#f8fafc" paddingHorizontal={0}>
                 {/* Header */}
-                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+                <View style={styles.header}>
                     <TouchableOpacity onPress={() => setView('stores')} style={styles.backBtn}>
                         <ArrowLeft size={20} color="#0f172a" />
                     </TouchableOpacity>
@@ -634,7 +634,7 @@ const MerchantPrograms = () => {
                         </View>
                     </TouchableOpacity>
                 </Modal>
-            </View>
+            </ScreenWrapper>
         );
     }
 
@@ -652,9 +652,9 @@ const MerchantPrograms = () => {
     }
 
     return (
-        <View style={styles.container}>
+        <ScreenWrapper backgroundColor="#f8fafc" paddingHorizontal={0}>
             {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
+            <View style={styles.header}>
                 <View>
                     <Text style={styles.headerTitle}>Stores</Text>
                     <Text style={styles.headerSub}>{stores.length} store{stores.length !== 1 ? 's' : ''}</Text>
@@ -740,7 +740,7 @@ const MerchantPrograms = () => {
                     activeOpacity={1}
                     onPress={() => setShowCreateStore(false)}
                 >
-                    <View style={[styles.createSheet, { paddingBottom: insets.bottom + 24 }]}>
+                    <View style={[styles.createSheet, { paddingBottom: 40 }]}>
                         <View style={styles.pickerHandle} />
                         <View style={styles.pickerHeader}>
                             <Text style={styles.pickerTitle}>New Store</Text>
@@ -777,7 +777,7 @@ const MerchantPrograms = () => {
                     </View>
                 </TouchableOpacity>
             </Modal>
-        </View>
+        </ScreenWrapper>
     );
 };
 

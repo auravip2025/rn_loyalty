@@ -14,6 +14,7 @@ import {
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
 import ProgramConfigEditor from '../../components/old_app/merchant/ProgramConfigEditor';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const MerchantStore = ({ programs, onUpdateProgram }) => {
   const [selectedProgram, setSelectedProgram] = useState(null);
@@ -34,9 +35,10 @@ const MerchantStore = ({ programs, onUpdateProgram }) => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}>
+    <ScreenWrapper
+      scroll
+      contentContainerStyle={styles.contentContainer}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Active Programs</Text>
         <TouchableOpacity style={styles.historyButton}>
@@ -106,7 +108,7 @@ const MerchantStore = ({ programs, onUpdateProgram }) => {
         <Plus size={18} color="#94a3b8" />
         <Text style={styles.addButtonText}>Configure New Program</Text>
       </Button>
-    </ScrollView>
+    </ScreenWrapper>
   );
 };
 

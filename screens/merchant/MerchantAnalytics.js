@@ -14,7 +14,7 @@ import {
   Users
 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import {
   Dimensions,
   ScrollView,
@@ -115,7 +115,7 @@ const MetricDetail = ({ metric, onBack }) => {
 };
 
 const MerchantAnalytics = () => {
-  const insets = useSafeAreaInsets();
+
   const [selectedReward, setSelectedReward] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState(null);
   const [prompt, setPrompt] = useState('');
@@ -180,9 +180,10 @@ const MerchantAnalytics = () => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top }]}>
+    <ScreenWrapper
+      scroll
+      contentContainerStyle={styles.contentContainer}
+    >
 
       {/* Property Overview Card */}
       <PropertyOverview />
@@ -293,7 +294,7 @@ const MerchantAnalytics = () => {
         <Plus size={18} color="#64748b" />
         <Text style={styles.addRewardText}>Add New Reward</Text>
       </Button>
-    </ScrollView>
+    </ScreenWrapper>
   );
 };
 
