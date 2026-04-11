@@ -31,9 +31,18 @@ export default function MerchantLayout() {
             <Tabs.Screen
                 name="programs"
                 options={{
-                    title: 'Programs',
+                    title: 'Store',
                     tabBarIcon: ({ color }) => (
-                        <IconSymbol size={26} name="list.bullet" color={color} />
+                        <IconSymbol size={26} name="storefront" color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="catalog"
+                options={{
+                    title: 'Catalog',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={26} name="gift.fill" color={color} />
                     ),
                 }}
             />
@@ -57,8 +66,9 @@ export default function MerchantLayout() {
             />
 
             {/* ── Hidden screens (full-screen overlays, no tab shown) ── */}
-            <Tabs.Screen name="onboarding" options={{ href: null }} />
-            <Tabs.Screen name="profile" options={{ href: null }} />
+            <Tabs.Screen name="store"       options={{ href: null }} />
+            <Tabs.Screen name="onboarding"  options={{ href: null }} />
+            <Tabs.Screen name="profile"     options={{ href: null }} />
         </Tabs>
     );
 }

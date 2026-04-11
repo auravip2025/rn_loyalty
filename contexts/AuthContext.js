@@ -68,13 +68,8 @@ export const AuthProvider = ({ children }) => {
   const loginWithOtp = async (email, selectedRole, isNewUser = false) => {
     try {
       setLoading(true);
-      const mockUser = {
-        id: Date.now(),
-        name: selectedRole === 'customer' ? 'Alex Johnson' : 'The Coffee House',
-        email,
-        isNew: isNewUser,
-      };
-      await AsyncStorage.setItem('@dandan_user', JSON.stringify(mockUser));
+      const sessionUser = { id: Date.now(), email, isNew: isNewUser };
+      await AsyncStorage.setItem('@dandan_user', JSON.stringify(sessionUser));
       await AsyncStorage.setItem('@dandan_role', selectedRole);
 
       // New merchants start at 'pending' (needs onboarding)
@@ -83,9 +78,25 @@ export const AuthProvider = ({ children }) => {
         setOnboardingStatus('pending');
       }
 
-      setUser(mockUser);
+      setUser(sessionUser);
       setRole(selectedRole);
       setIsAuthenticated(true);
+
+      // Load merchant profile from AsyncStorage — LoginScreen may have just
+      // written it from the verify-otp response before calling this function
+      if (selectedRole === 'merchant') {
+        const stored = await AsyncStorage.getItem('@dandan_merchant_profile');
+        if (stored) {
+          const profile = JSON.parse(stored);
+          setMerchantProfile(profile);
+          // Existing merchants are active — mark onboarding complete
+          if (!isNewUser) {
+            setOnboardingStatus('approved');
+            await AsyncStorage.setItem('@dandan_onboarding_status', 'approved');
+          }
+        }
+      }
+
       return { success: true, isNew: isNewUser };
     } catch (error) {
       return { success: false, error: error.message };
@@ -97,13 +108,40 @@ export const AuthProvider = ({ children }) => {
   // Save merchant profile (onboarding submission)
   const saveMerchantProfile = async (profileData) => {
     try {
-      const profile = { ...profileData, createdAt: new Date().toISOString() };
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const token = await AsyncStorage.getItem('@dandan_auth_token');
+      
+      const payload = {
+        companyName: profileData.businessName,
+        registrationNumber: profileData.taxId,
+        adminName: user?.name || profileData.businessName,
+        email: (user?.email || '').toLowerCase(),
+        category: profileData.businessType,
+        address: profileData.address,
+        phone: profileData.phone,
+      };
+
+      const response = await fetch(`${API_URL}/merchants/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to register merchant');
+
+      const profile = { ...profileData, id: data.merchant?.id || data.merchantId || data.id, createdAt: new Date().toISOString() };
       await AsyncStorage.setItem('@dandan_merchant_profile', JSON.stringify(profile));
       await AsyncStorage.setItem('@dandan_onboarding_status', 'under_review');
+      if (data.token) await AsyncStorage.setItem('@dandan_auth_token', data.token);
+      if (data.refreshToken) await AsyncStorage.setItem('@dandan_refresh_token', data.refreshToken);
       setMerchantProfile(profile);
       setOnboardingStatus('under_review');
       return { success: true };
     } catch (error) {
+      console.error('Merchant registration failed:', error);
       return { success: false, error: error.message };
     }
   };
@@ -127,6 +165,8 @@ export const AuthProvider = ({ children }) => {
         '@dandan_role',
         '@dandan_merchant_profile',
         '@dandan_onboarding_status',
+        '@dandan_auth_token',
+        '@dandan_refresh_token',
       ]);
       setUser(null);
       setRole(null);

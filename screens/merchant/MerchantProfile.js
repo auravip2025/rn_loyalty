@@ -23,6 +23,7 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -117,7 +118,7 @@ const MerchantProfile = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <ScreenWrapper backgroundColor="#ffffff" paddingHorizontal={0}>
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Business Profile</Text>
@@ -238,7 +239,7 @@ const MerchantProfile = () => {
                 </TouchableOpacity>
 
             </ScrollView>
-        </View>
+        </ScreenWrapper>
     );
 };
 

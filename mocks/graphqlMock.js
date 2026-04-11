@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-// MOCK QUERIES
 export const GET_MERCHANTS = `
   query GetMerchants {
     merchants { id name category categoryEmoji distance rating reviewCount open address phone hours website image description tags visitCount programs { id name desc active icon color segments } offers { id title desc discount expires } reviews { author rating text date } }
@@ -10,13 +9,7 @@ export const GET_MERCHANTS = `
 export const GET_PROGRAMS = `
   query GetPrograms {
     programs {
-      id
-      name
-      desc
-      active
-      color
-      icon
-      segments
+      id name desc active color icon segments { label color type value }
     }
   }
 `;
@@ -24,14 +17,7 @@ export const GET_PROGRAMS = `
 export const GET_WALLET = `
   query GetWallet {
     wallet {
-      balance
-      transactions {
-        id
-        merchant
-        amount
-        type
-        date
-      }
+      balance transactions { id merchant amount type date }
     }
   }
 `;
@@ -39,12 +25,7 @@ export const GET_WALLET = `
 export const GET_DAILY_QUESTS = `
   query GetDailyQuests {
     dailyQuests {
-      id
-      title
-      desc
-      points
-      icon
-      completed
+      id title desc points icon completed
     }
   }
 `;
@@ -52,11 +33,7 @@ export const GET_DAILY_QUESTS = `
 export const GET_OFFERS = `
   query GetOffers {
     offers {
-      id
-      title
-      desc
-      image
-      price
+      id title desc image price
     }
     storeMenus {
       storeName
@@ -97,7 +74,6 @@ export const GET_CHAT_SUGGESTIONS = `
   }
 `;
 
-// MOCK MUTATIONS
 export const DEDUCT_POINTS = `mutation DeductPoints($amount: Int!, $merchant: String!) { deductPoints(amount: $amount, merchant: $merchant) { success wallet { balance } } }`;
 export const EARN_POINTS = `mutation EarnPoints($amount: Int!, $merchant: String!) { earnPoints(amount: $amount, merchant: $merchant) { success wallet { balance } } }`;
 
@@ -115,14 +91,15 @@ let DB = {
             programs: [
                 { id: 1, name: 'Loyalty Points', desc: '1 pt per $1 spent', active: true, icon: 'Star', color: 'indigo' },
                 { id: 4, name: 'Digital Stamps', desc: 'Buy 9, Get 1 Free', active: true, icon: 'QrCode', color: 'emerald' },
-                { id: 2, name: 'Wheel of Fortune', desc: 'Daily spin for bonus points', active: true, icon: 'RefreshCw', color: 'amber', 
-                  segments: [
-                    { label: '50 Pts', color: '#6366f1', type: 'points', value: 50 },
-                    { label: '0 Luck', color: '#94a3b8', type: 'none', value: 0 },
-                    { label: '10% Off', color: '#10b981', type: 'discount', value: 10 },
-                    { label: 'Free Tea', color: '#f59e0b', type: 'item', value: 'Tea' },
-                    { label: '2x Pts', color: '#ec4899', type: 'multiplier', value: 2 },
-                  ]
+                {
+                    id: 2, name: 'Wheel of Fortune', desc: 'Daily spin for bonus points', active: true, icon: 'RefreshCw', color: 'amber',
+                    segments: [
+                        { label: '50 Pts', color: '#6366f1', type: 'points', value: 50 },
+                        { label: '0 Luck', color: '#94a3b8', type: 'none', value: 0 },
+                        { label: '10% Off', color: '#10b981', type: 'discount', value: 10 },
+                        { label: 'Free Tea', color: '#f59e0b', type: 'item', value: 'Tea' },
+                        { label: '2x Pts', color: '#ec4899', type: 'multiplier', value: 2 },
+                    ]
                 },
             ],
             offers: [
@@ -145,13 +122,14 @@ let DB = {
             tags: ['Trending'],
             programs: [
                 { id: 2, name: 'Member Discount', desc: 'Flat 10% off for members', active: true, icon: 'Percent', color: 'blue' },
-                { id: 8, name: 'Wheel of Fortune', desc: 'Style spin!', active: true, icon: 'RefreshCw', color: 'amber',
-                  segments: [
-                    { label: 'Shoes', color: '#6366f1', type: 'item', value: 'Shoes' },
-                    { label: '20% Off', color: '#10b981', type: 'discount', value: 20 },
-                    { label: '500 Pts', color: '#f59e0b', type: 'points', value: 500 },
-                    { label: 'Try Next Time', color: '#94a3b8', type: 'none', value: 0 },
-                  ]
+                {
+                    id: 8, name: 'Wheel of Fortune', desc: 'Style spin!', active: true, icon: 'RefreshCw', color: 'amber',
+                    segments: [
+                        { label: 'Shoes', color: '#6366f1', type: 'item', value: 'Shoes' },
+                        { label: '20% Off', color: '#10b981', type: 'discount', value: 20 },
+                        { label: '500 Pts', color: '#f59e0b', type: 'points', value: 500 },
+                        { label: 'Try Next Time', color: '#94a3b8', type: 'none', value: 0 },
+                    ]
                 },
             ],
             offers: [
@@ -193,13 +171,14 @@ let DB = {
             tags: ['Popular', 'Eco-Friendly'],
             programs: [
                 { id: 3, name: 'Loyalty Points', desc: '1 pt per $1 spent', active: true, icon: 'Star', color: 'indigo' },
-                { id: 9, name: 'Wheel of Fortune', desc: 'Fresh rewards!', active: true, icon: 'RefreshCw', color: 'amber',
-                  segments: [
-                    { label: 'Organic Apple', color: '#10b981', type: 'item', value: 'Apple' },
-                    { label: 'Free Delivery', color: '#6366f1', type: 'item', value: 'Delivery' },
-                    { label: '5% Extra', color: '#f59e0b', type: 'discount', value: 5 },
-                    { label: 'No Luck', color: '#94a3b8', type: 'none', value: 0 },
-                  ]
+                {
+                    id: 9, name: 'Wheel of Fortune', desc: 'Fresh rewards!', active: true, icon: 'RefreshCw', color: 'amber',
+                    segments: [
+                        { label: 'Organic Apple', color: '#10b981', type: 'item', value: 'Apple' },
+                        { label: 'Free Delivery', color: '#6366f1', type: 'item', value: 'Delivery' },
+                        { label: '5% Extra', color: '#f59e0b', type: 'discount', value: 5 },
+                        { label: 'No Luck', color: '#94a3b8', type: 'none', value: 0 },
+                    ]
                 },
             ],
             offers: [
@@ -243,13 +222,14 @@ let DB = {
             tags: ['Popular', 'Trending'],
             programs: [
                 { id: 3, name: 'Loyalty Points', desc: '1 pt per $1 spent', active: true, icon: 'Star', color: 'indigo' },
-                { id: 5, name: 'Scratch & Win', desc: 'Try your luck!', active: true, icon: 'Ticket', color: 'rose',
-                  segments: [
-                    { label: '100 Pts', color: '#6366f1', type: 'points', value: 100 },
-                    { label: '5% Off', color: '#10b981', type: 'discount', value: 5 },
-                    { label: 'Free XLB', color: '#f59e0b', type: 'item', value: 'XLB' },
-                    { label: 'Try Again', color: '#94a3b8', type: 'none', value: 0 },
-                  ]
+                {
+                    id: 5, name: 'Scratch & Win', desc: 'Try your luck!', active: true, icon: 'Ticket', color: 'rose',
+                    segments: [
+                        { label: '100 Pts', color: '#6366f1', type: 'points', value: 100 },
+                        { label: '5% Off', color: '#10b981', type: 'discount', value: 5 },
+                        { label: 'Free XLB', color: '#f59e0b', type: 'item', value: 'XLB' },
+                        { label: 'Try Again', color: '#94a3b8', type: 'none', value: 0 },
+                    ]
                 },
             ],
             offers: [

@@ -3,25 +3,101 @@ import {
   ChevronRight,
   Cpu,
   LogOut,
+  Megaphone,
   Moon,
   ShieldCheck,
   Store,
   Sun,
   UserCog,
 } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Modal,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
+import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
+import MerchantCampaigns from './MerchantCampaigns';
+
+const NotificationsModal = ({ visible, onClose }) => {
+  const insets = useSafeAreaInsets();
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [rewardAlerts, setRewardAlerts] = useState(true);
+  const [scanAlerts, setScanAlerts] = useState(false);
+  const [weeklyReport, setWeeklyReport] = useState(true);
+
+  const rows = [
+    { label: 'Push Notifications', sub: 'Real-time alerts on your device', value: pushEnabled, set: setPushEnabled },
+    { label: 'Email Notifications', sub: 'Summaries sent to your inbox', value: emailEnabled, set: setEmailEnabled },
+    { label: 'Reward Redemptions', sub: 'Alert when a customer redeems', value: rewardAlerts, set: setRewardAlerts },
+    { label: 'QR Scan Activity', sub: 'Alert on each scan event', value: scanAlerts, set: setScanAlerts },
+    { label: 'Weekly Report', sub: 'Performance digest every Monday', value: weeklyReport, set: setWeeklyReport },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={notifStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <View style={[notifStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+          <View style={notifStyles.handle} />
+          <Text style={notifStyles.title}>Notifications</Text>
+          {rows.map((row, i) => (
+            <View key={i} style={notifStyles.row}>
+              <View style={notifStyles.rowInfo}>
+                <Text style={notifStyles.rowLabel}>{row.label}</Text>
+                <Text style={notifStyles.rowSub}>{row.sub}</Text>
+              </View>
+              <Switch
+                value={row.value}
+                onValueChange={row.set}
+                trackColor={{ false: '#e2e8f0', true: '#10b981' }}
+                thumbColor="#fff"
+              />
+            </View>
+          ))}
+          <TouchableOpacity style={notifStyles.doneBtn} onPress={onClose}>
+            <Text style={notifStyles.doneBtnText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+const notifStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: 12, paddingHorizontal: 20,
+  },
+  handle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  title: { fontSize: 17, fontWeight: '900', color: '#0f172a', marginBottom: 16 },
+  row: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+  },
+  rowInfo: { flex: 1, marginRight: 12 },
+  rowLabel: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
+  rowSub: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  doneBtn: {
+    marginTop: 20, backgroundColor: '#10b981', borderRadius: 14,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  doneBtnText: { fontSize: 14, fontWeight: '900', color: '#fff' },
+});
 
 const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) => {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showCampaigns, setShowCampaigns] = useState(false);
   const { onboardingStatus } = useAuth();
 
   const statusLabel = onboardingStatus === 'approved' ? 'Verified ✓'
@@ -45,7 +121,16 @@ const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) =>
       title: 'Notifications',
       subtitle: 'Push & Email',
       icon: Bell,
-      right: <View style={styles.toggle} />,
+      right: <ChevronRight size={16} color="#94a3b8" />,
+      onPress: () => setShowNotifications(true),
+    },
+    {
+      id: 4,
+      title: 'Campaigns',
+      subtitle: 'Event-based rewards',
+      icon: Megaphone,
+      right: <ChevronRight size={16} color="#94a3b8" />,
+      onPress: () => setShowCampaigns(true),
     },
     {
       id: 2,
@@ -64,9 +149,12 @@ const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) =>
   ];
 
   return (
-    <ScrollView
-      style={[styles.container, isDark && styles.containerDark]}
-      contentContainerStyle={styles.contentContainer}>
+    <>
+    <ScreenWrapper
+      scroll
+      contentContainerStyle={styles.contentContainer}
+      style={isDark && styles.containerDark}
+    >
 
       <View style={styles.profileSection}>
         <View style={styles.logoContainer}>
@@ -112,7 +200,10 @@ const MerchantSettings = ({ onLogout, onToggleTheme, isDark, onEditProfile }) =>
         <LogOut size={18} color="#ffffff" />
         <Text style={styles.logoutText}>Sign Out</Text>
       </Button>
-    </ScrollView>
+    </ScreenWrapper>
+      <NotificationsModal visible={showNotifications} onClose={() => setShowNotifications(false)} />
+      <MerchantCampaigns visible={showCampaigns} onClose={() => setShowCampaigns(false)} />
+    </>
   );
 };
 

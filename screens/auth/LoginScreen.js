@@ -9,15 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { AUTHENTICATE, IS_MOCK, useMutation, VERIFY_OTP } from '../../api/client';
+import { fetchApi, IS_MOCK, MOCK_OTP } from '../../api/restClient';
 import Button from '../../components/old_app/common/Button';
 import Input from '../../components/old_app/common/Input';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Mock OTP for demo
-const MOCK_OTP = '123456';
+// MOCK_OTP is imported from restClient (sourced from restMock) so it stays in sync
 
-const MOCK_EMAILS = {
+const PLACEHOLDER_EMAILS = {
   customer: 'alex@dandan.io',
   merchant: 'merchant@coffeehouse.com',
 };
@@ -32,8 +31,7 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [authenticate] = useMutation(AUTHENTICATE);
-  const [verifyOtp] = useMutation(VERIFY_OTP);
+  const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
   const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
 
@@ -49,17 +47,26 @@ const LoginScreen = () => {
     setEmailError('');
     setLoading(true);
     try {
-      const { data } = await authenticate({ variables: { email: email.toLowerCase() } });
+      const endpoint = activeRole === 'customer' ? '/users/auth/otp' : '/merchants/auth/request-otp';
+      const response = await fetchApi(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.toLowerCase(),
+          mode: isNewUser ? 'register' : 'login',
+        }),
+      });
+      const data = await response.json();
 
-      if (data?.authenticate?.success) {
+      if (response.ok && data?.success !== false) {
         setStep('otp');
         setOtpError('');
-        console.log(`[GraphQL OTP] Requested for ${email}. Message: ${data.authenticate.message}, Expires in: ${data.authenticate.expiresIn}s, Cooldown: ${data.authenticate.cooldown}s`);
+        console.log(`[REST OTP] Requested for ${email}. Message: ${data.message || 'ok'}`);
       } else {
-        setEmailError(data?.authenticate?.message || 'Failed to send OTP.');
+        setEmailError(data?.message || 'Failed to send OTP.');
       }
     } catch (err) {
-      console.error('Mutation Error:', err);
+      console.error('Fetch Error:', err);
       setEmailError('Could not connect to the authentication server.');
     } finally {
       setLoading(false);
@@ -76,42 +83,59 @@ const LoginScreen = () => {
 
     setLoading(true);
     try {
-      const { data } = await verifyOtp({
-        variables: {
+      const endpoint = activeRole === 'customer' ? '/users/auth/verify' : '/merchants/auth/verify-otp';
+      const response = await fetchApi(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           email: email.toLowerCase(),
-          otp: entered
-        }
+          otp: entered,
+          mode: isNewUser ? 'register' : 'login',
+        }),
       });
+      const res = await response.json();
 
-      const res = data?.verifyOtp;
-
-      if (res?.success) {
-        // Store the persistent token for the Apollo Auth Link
+      if (response.ok && res?.success !== false) {
+        // Store auth tokens
         if (res.token) {
           await AsyncStorage.setItem('@dandan_auth_token', res.token);
         }
-        // Store refresh token
         if (res.refreshToken) {
           await AsyncStorage.setItem('@dandan_refresh_token', res.refreshToken);
         }
 
-        console.log(`[GraphQL Verify] Success. User: ${res.user?.email}, Role: ${res.user?.role}, isNew: ${res.isNewUser}, tokenType: ${res.tokenType}, expiresIn: ${res.expiresIn}s`);
+        // For merchants — store the merchant profile returned by verify so
+        // MerchantPrograms can use merchantProfile.id immediately
+        if (activeRole === 'merchant' && res.merchant) {
+          const profile = {
+            id: res.merchant.id,
+            businessName: res.merchant.companyName || res.merchant.name,
+            businessType: res.merchant.category,
+            address: res.merchant.address,
+            phone: res.merchant.phone,
+            email: res.merchant.email,
+            status: res.merchant.status,
+          };
+          await AsyncStorage.setItem('@dandan_merchant_profile', JSON.stringify(profile));
+        }
+
+        console.log(`[Verify] Success. merchant=${JSON.stringify(res.merchant)}, isNew=${res.isNewMerchant ?? res.isNewUser}`);
 
         // Use role from server response, fallback to selected role
-        const userRole = res.user?.role || activeRole;
+        const userRole = res.user?.role || (activeRole === 'merchant' ? 'merchant' : activeRole);
+        const newFlag = res.isNewMerchant ?? res.isNewUser ?? isNewUser;
 
-        // Log in the user in the Context (saves basic session data)
         const loginResult = await loginWithOtp(
-          res.user?.email || email,
+          (res.user?.email || res.merchant?.email || email).toLowerCase(),
           userRole,
-          res.isNewUser
+          newFlag
         );
 
         if (!loginResult.success) {
           setOtpError('Successfully verified but could not create local session.');
         }
       } else {
-        setOtpError(res?.message || 'The code you entered is incorrect.');
+        setOtpError(res?.error || res?.message || 'The code you entered is incorrect.');
       }
     } catch (err) {
       console.error('Verify Mutation Error:', err);
@@ -195,7 +219,7 @@ const LoginScreen = () => {
             <Input
               label="Email Address"
               icon={Mail}
-              placeholder={MOCK_EMAILS[activeRole]}
+              placeholder={PLACEHOLDER_EMAILS[activeRole]}
               value={email}
               onChange={(val) => { setEmail(val); if (emailError) setEmailError(''); }}
               autoFocus

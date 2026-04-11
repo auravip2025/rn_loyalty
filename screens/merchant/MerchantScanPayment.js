@@ -2,11 +2,11 @@ import { CheckCircle, Receipt, User } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const MerchantScanPayment = ({ transactionData, onDone }) => {
-  const insets = useSafeAreaInsets();
+
 
   if (!transactionData) return null;
 
