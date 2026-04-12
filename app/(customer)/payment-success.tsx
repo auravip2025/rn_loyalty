@@ -11,17 +11,12 @@ export default function PaymentSuccessPage() {
     const merchantName = (params.merchantName as string) || 'Merchant';
     const transactionRef = (params.transactionRef as string) || 'N/A';
 
-    const handleDone = () => {
-        router.replace('/(customer)/home');
-    };
-
     return (
         <PaymentSuccess
             amount={amount}
             pointsUsed={pointsUsed}
             merchantName={merchantName}
             transactionRef={transactionRef}
-            onDone={handleDone}
         />
     );
 }

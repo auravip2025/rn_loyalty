@@ -76,7 +76,7 @@ const ScanView: React.FC<ScanViewProps> = ({ onScanComplete }) => {
             <View style={styles.cornerTR} />
             <View style={styles.cornerBL} />
             <View style={styles.cornerBR} />
-            <View style={styles.scanAnimation} />
+
           </View>
           <View style={styles.rightOverlay} />
         </View>
@@ -136,19 +136,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 40,
   },
-  scanAnimation: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: '#f43f5e',
-    shadowColor: '#f43f5e',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 5,
-  },
+
   infoContainer: {
     flexDirection: 'row',
     alignItems: 'center',

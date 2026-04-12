@@ -8,7 +8,7 @@ import Animated, {
   withSpring,
   withTiming
 } from 'react-native-reanimated';
-import { CheckCircle, ArrowRight, Share2, Download } from 'lucide-react-native';
+import { CheckCircle, Share2, Download } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
@@ -19,7 +19,6 @@ interface PaymentSuccessProps {
   pointsUsed: number;
   merchantName: string;
   transactionRef: string;
-  onDone: () => void;
 }
 
 const PaymentSuccess: React.FC<PaymentSuccessProps> = ({ 
@@ -27,7 +26,6 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
   pointsUsed, 
   merchantName, 
   transactionRef,
-  onDone 
 }) => {
   const insets = useSafeAreaInsets();
   const scale = useSharedValue(0);
@@ -105,12 +103,7 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
         </View>
       </View>
 
-      <Animated.View entering={FadeInUp.delay(900).duration(600)} style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <TouchableOpacity style={styles.doneButton} onPress={onDone}>
-          <Text style={styles.doneButtonText}>Back to Home</Text>
-          <ArrowRight size={20} color="#ffffff" />
-        </TouchableOpacity>
-      </Animated.View>
+
     </ScreenWrapper>
   );
 };
@@ -227,29 +220,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#64748b',
-  },
-  footer: {
-    width: '100%',
-    paddingTop: 16,
-  },
-  doneButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    backgroundColor: '#4f46e5',
-    height: 64,
-    borderRadius: 32,
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  doneButtonText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#ffffff',
   },
 });
 
