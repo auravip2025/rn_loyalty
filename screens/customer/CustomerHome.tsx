@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Crown,
   Gift,
+  History,
   MapPin,
   Monitor,
   Scissors,
@@ -13,6 +14,7 @@ import {
   ShoppingBag,
   Trophy,
   Utensils,
+  LucideIcon,
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -22,7 +24,9 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -35,7 +39,37 @@ import Animated, {
 } from 'react-native-reanimated';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
-const OfferCardItem = ({ offer, index, onPress }) => {
+interface Offer {
+  id: string | number;
+  image: string;
+  title: string;
+  desc: string;
+}
+
+interface Store {
+  id: string | number;
+  name: string;
+  image: string;
+  visitDate: string;
+  pointsEarned: number;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  icon: LucideIcon;
+  color: string;
+  iconColor: string;
+  shops: { name: string }[];
+}
+
+interface OfferCardItemProps {
+  offer: Offer;
+  index: number;
+  onPress: () => void;
+}
+
+const OfferCardItem: React.FC<OfferCardItemProps> = ({ offer, index, onPress }) => {
   const translateX = useSharedValue(200);
   const rotate = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -92,64 +126,13 @@ const OfferCardItem = ({ offer, index, onPress }) => {
   );
 };
 
-const Shimmer = ({ width = 160, duration = 2000, delay = 0 }) => {
-  const translateX = useSharedValue(-width);
+interface CategoryAccordionItemProps {
+  cat: Category;
+  isActive: boolean;
+  onPress: () => void;
+}
 
-  React.useEffect(() => {
-    translateX.value = withDelay(
-      delay,
-      withRepeat(
-        withTiming(width * 2, {
-          duration: duration,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-        }),
-        -1,
-        false
-      )
-    );
-  }, [delay, duration, width]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
-
-  return (
-    <Animated.View
-      style={[
-        StyleSheet.absoluteFillObject,
-        {
-          overflow: 'hidden',
-          zIndex: 10,
-        },
-      ]}
-      pointerEvents="none"
-    >
-      <Animated.View
-        style={[
-          {
-            width: width,
-            height: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.15)',
-            transform: [{ skewX: '-20deg' }],
-          },
-          animatedStyle,
-        ]}
-      />
-    </Animated.View>
-  );
-};
-
-const CATEGORY_DATA = [
-  { id: 1, name: 'Food', icon: Utensils, color: '#002244', iconColor: '#fbbf24', shops: [{ name: 'KFC' }, { name: 'McDonalds' }, { name: 'Dominos' }, { name: 'Subway' }] },
-  { id: 2, name: 'Clothing', icon: Shirt, color: '#002244', iconColor: '#818cf8', shops: [{ name: 'Zara' }, { name: 'H&M' }, { name: 'Nike' }, { name: 'Adidas' }] },
-  { id: 3, name: 'Shopping', icon: ShoppingBag, color: '#002244', iconColor: '#f472b6', shops: [{ name: 'Amazon' }, { name: 'Target' }, { name: 'Walmart' }] },
-  { id: 4, name: 'Electronics', icon: Monitor, color: '#002244', iconColor: '#38bdf8', shops: [{ name: 'Apple' }, { name: 'BestBuy' }, { name: 'Sony' }] },
-  { id: 5, name: 'Beauty', icon: Scissors, color: '#002244', iconColor: '#e879f9', shops: [{ name: 'Sephora' }, { name: 'Ulta' }, { name: 'MAC' }] },
-];
-
-const CategoryAccordionItem = ({ cat, isActive, onPress }) => {
+const CategoryAccordionItem: React.FC<CategoryAccordionItemProps> = ({ cat, isActive, onPress }) => {
   const IconComponent = cat.icon;
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -197,22 +180,74 @@ const CategoryAccordionItem = ({ cat, isActive, onPress }) => {
           </ScrollView>
         </View>
       </View>
-
     </Animated.View>
   );
 };
 
-const CustomerHome = ({
+interface RecentStoreItemProps {
+  store: Store;
+  index: number;
+}
+
+const RecentStoreItem: React.FC<RecentStoreItemProps> = ({ store, index }) => {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
+
+  useEffect(() => {
+    opacity.value = withDelay(index * 150, withTiming(1, { duration: 500 }));
+    translateY.value = withDelay(index * 150, withTiming(0, { duration: 500 }));
+  }, [index]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.recentStoreCard, animatedStyle]}>
+      <Image source={{ uri: store.image }} style={styles.recentStoreImage} />
+      <View style={styles.recentStoreOverlay} />
+      <View style={styles.recentStoreContent}>
+        <Text style={styles.recentStoreName} numberOfLines={1}>{store.name}</Text>
+        <View style={styles.recentStoreMeta}>
+          <Text style={styles.recentStoreTime}>{store.visitDate}</Text>
+          <View style={styles.recentStorePoints}>
+            <Text style={styles.recentStorePointsText}>+{store.pointsEarned} pts</Text>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
+const CATEGORY_DATA: Category[] = [
+  { id: 1, name: 'Food', icon: Utensils, color: '#002244', iconColor: '#fbbf24', shops: [{ name: 'KFC' }, { name: 'McDonalds' }, { name: 'Dominos' }, { name: 'Subway' }] },
+  { id: 2, name: 'Clothing', icon: Shirt, color: '#002244', iconColor: '#818cf8', shops: [{ name: 'Zara' }, { name: 'H&M' }, { name: 'Nike' }, { name: 'Adidas' }] },
+  { id: 3, name: 'Shopping', icon: ShoppingBag, color: '#002244', iconColor: '#f472b6', shops: [{ name: 'Amazon' }, { name: 'Target' }, { name: 'Walmart' }] },
+  { id: 4, name: 'Electronics', icon: Monitor, color: '#002244', iconColor: '#38bdf8', shops: [{ name: 'Apple' }, { name: 'BestBuy' }, { name: 'Sony' }] },
+  { id: 5, name: 'Beauty', icon: Scissors, color: '#002244', iconColor: '#e879f9', shops: [{ name: 'Sephora' }, { name: 'Ulta' }, { name: 'MAC' }] },
+];
+
+interface CustomerHomeProps {
+  offers: Offer[];
+  recentStores?: Store[];
+  balance: number;
+  onOpenWallet: () => void;
+  onScan: () => void;
+}
+
+const CustomerHome: React.FC<CustomerHomeProps> = ({
   offers,
+  recentStores = [],
   balance,
   onOpenWallet,
   onScan,
 }) => {
   const router = useRouter();
-  const [activeCategory, setActiveCategory] = useState(null);
+  const [activeCategory, setActiveCategory] = useState<number | null>(null);
 
-  const scrollViewRef = useRef(null);
-  const mainScrollViewRef = useRef(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const mainScrollViewRef = useRef<any>(null);
 
   const scrollX = useRef(0);
 
@@ -228,7 +263,7 @@ const CustomerHome = ({
     scrollX.current = nextX;
   };
 
-  const handleScroll = (event) => {
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollX.current = event.nativeEvent.contentOffset.x;
   };
 
@@ -277,7 +312,7 @@ const CustomerHome = ({
                   Available Balance
                 </Text>
                 <Text style={{ fontSize: 48, fontWeight: '900', color: '#ffffff', letterSpacing: -1, textAlign: 'center' }}>
-                  {balance.toLocaleString()}
+                  {(balance || 0).toLocaleString()}
                   <Text style={{ fontSize: 20, color: '#fbbf24', fontWeight: '700' }}> dandan</Text>
                 </Text>
               </View>
@@ -301,11 +336,11 @@ const CustomerHome = ({
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          {[
+          {( [
             { icon: Gift, label: 'Rewards', color: '#faf5ff', iconColor: '#9333ea', action: () => router.push('/(customer)/rewards') },
             { icon: MapPin, label: 'Nearby', color: '#ecfdf5', iconColor: '#059669', action: () => router.push('/(customer)/nearby') },
             { icon: Trophy, label: 'Games', color: '#fffbeb', iconColor: '#d97706', action: () => router.push('/(customer)/games') },
-          ].map((item, idx) => {
+          ] as const).map((item, idx) => {
             const IconComponent = item.icon;
             return (
               <TouchableOpacity
@@ -349,7 +384,7 @@ const CustomerHome = ({
               index={i}
               onPress={() => {
                 router.push({
-                  pathname: '/(customer)/offer-details',
+                  pathname: '/(customer)/offer-details' as any,
                   params: { offer: JSON.stringify(offer) }
                 });
               }}
@@ -377,6 +412,27 @@ const CustomerHome = ({
           ))}
         </ScrollView>
 
+        {/* Recently Visited Stores Section */}
+        {recentStores && recentStores.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.sectionTitle}>Recently Visited</Text>
+                <History size={16} color="#64748b" />
+              </View>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>See History</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.recentStoresContainer}>
+              {recentStores.map((store, i) => (
+                <RecentStoreItem key={store.id} store={store} index={i} />
+              ))}
+            </View>
+          </>
+        )}
+
       </ScreenWrapper>
     </View>
   );
@@ -385,10 +441,6 @@ const CustomerHome = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  contentContainer: {
-    // paddingBottom: 100, // Handled by wrapper
-    // paddingHorizontal: 24, // Handled by wrapper
   },
   header: {
     flexDirection: 'row',
@@ -468,24 +520,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     textTransform: 'uppercase',
     letterSpacing: 1,
-  },
-  qrIcon: {
-    width: 32,
-    height: 32,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  balanceAmount: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#ffffff',
-  },
-  balanceUnit: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#94a3b8',
   },
   progressSection: {
     marginTop: 12,
@@ -595,7 +629,7 @@ const styles = StyleSheet.create({
   offerTitle: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#fbbf24', // Gold/Yellow for the deal
+    color: '#fbbf24', 
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -604,7 +638,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   offerDesc: {
-    fontSize: 20, // Much bigger merchant name
+    fontSize: 20, 
     fontWeight: '900',
     color: '#ffffff',
     lineHeight: 24,
@@ -697,6 +731,64 @@ const styles = StyleSheet.create({
   shopName: {
     fontSize: 10,
     fontWeight: '700',
+  },
+  recentStoresContainer: {
+    gap: 12,
+    marginBottom: 32,
+  },
+  recentStoreCard: {
+    width: '100%',
+    height: 100,
+    borderRadius: 20,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#f1f5f9',
+    flexDirection: 'row',
+  },
+  recentStoreImage: {
+    width: 100,
+    height: '100%',
+  },
+  recentStoreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  recentStoreContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
+  },
+  recentStoreName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  recentStoreMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recentStoreTime: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  recentStorePoints: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  recentStorePointsText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#d97706',
+  },
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#4f46e5',
   },
 });
 

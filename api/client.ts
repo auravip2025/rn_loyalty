@@ -1,7 +1,7 @@
 "use client";
-import { ApolloClient, ApolloLink, InMemoryCache, createHttpLink, gql, Observable, fromPromise } from '@apollo/client';
-import { onError } from '@apollo/client/link/error';
+import { ApolloClient, ApolloLink, InMemoryCache, Observable, createHttpLink, fromPromise, gql } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { onError } from '@apollo/client/link/error';
 import { useMutation as useApolloMutation, useQuery as useApolloQuery } from '@apollo/client/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as mockClient from '../mocks/graphqlMock';
@@ -85,7 +85,7 @@ const getNewToken = async () => {
 };
 
 const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
-  const isUnauthorized = 
+  const isUnauthorized =
     (networkError && networkError.statusCode === 401) ||
     (graphQLErrors && graphQLErrors.some(err => err.extensions?.code === 'UNAUTHENTICATED' || err.message.includes('401') || err.message.includes('Unauthorized')));
 
@@ -159,6 +159,7 @@ export const GET_OFFERS = mockClient.GET_OFFERS;
 export const GET_CHAT_SUGGESTIONS = mockClient.GET_CHAT_SUGGESTIONS;
 export const DEDUCT_POINTS = mockClient.DEDUCT_POINTS;
 export const EARN_POINTS = mockClient.EARN_POINTS;
+export const GET_RECENT_STORES = mockClient.GET_RECENT_STORES;
 
 export const AUTHENTICATE = `
   mutation Authenticate($email: String!) {

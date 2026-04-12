@@ -1,11 +1,25 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useIsFocused } from '@react-navigation/native';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { QrCode } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, StyleSheet, Text, View } from 'react-native';
+import { Button, StyleSheet, Text, View } from 'react-native';
 
-const ScanView = ({ onScanComplete }) => {
+interface ScanViewProps {
+  onScanComplete: (data: string) => void;
+}
+
+const ScanView: React.FC<ScanViewProps> = ({ onScanComplete }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const scannedRef = React.useRef(false);
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) {
+      setScanned(false);
+      scannedRef.current = false;
+    }
+  }, [isFocused]);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
@@ -28,31 +42,28 @@ const ScanView = ({ onScanComplete }) => {
     );
   }
 
-  const handleBarCodeScanned = ({ type, data }) => {
-    if (scanned) return;
+  const handleBarCodeScanned = ({ type, data }: BarcodeScanningResult) => {
+    if (scannedRef.current || !isFocused) return;
     console.log(`Bar code with type ${type} and data ${data} has been scanned!`);
+    scannedRef.current = true;
     setScanned(true);
 
-    // Show alert and wait for user to dismiss before navigating/completing
-    Alert.alert(
-      "QR Code Detected",
-      `Data: ${data}`,
-      [
-        { text: "OK", onPress: () => onScanComplete(data) }
-      ]
-    );
+    // Auto confirm and proceed
+    onScanComplete(data);
   };
 
   return (
     <View style={styles.container}>
-      <CameraView
-        style={StyleSheet.absoluteFillObject}
-        facing="back"
-        onBarcodeScanned={handleBarCodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
-      />
+      {isFocused && (
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+          onBarcodeScanned={handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr"],
+          }}
+        />
+      )}
 
       {/* Overlay */}
       <View style={styles.overlay} pointerEvents="none">

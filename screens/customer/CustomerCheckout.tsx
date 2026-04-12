@@ -6,6 +6,7 @@ import {
   Plus,
   Wallet,
 } from 'lucide-react-native';
+import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
@@ -29,12 +30,37 @@ import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 const { width } = Dimensions.get('window');
 const POINTS_PER_DOLLAR = 100; // 100 dandan = $1
 
-const CustomerCheckout = ({
+interface CartItem {
+  title: string;
+  quantity: number;
+  price: number;
+}
+
+interface ConfirmSuccessDetails {
+  amount: number;
+  pointsUsed: number;
+  merchantName: string;
+  transactionRef: string;
+}
+
+interface CustomerCheckoutProps {
+  merchantName: string;
+  cartItems?: CartItem[];
+  totalAmount?: number;
+  balance?: number;
+  onConfirm?: (pointsUsed: number, merchantName: string) => Promise<void> | void;
+  onConfirmSuccess?: (details: ConfirmSuccessDetails) => void;
+  onDone?: () => void;
+  onCancel?: () => void;
+}
+
+const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
   merchantName,
   cartItems = [],
   totalAmount = 0,
   balance = 0,
   onConfirm,
+  onConfirmSuccess,
   onDone,
   onCancel,
 }) => {
@@ -43,6 +69,14 @@ const CustomerCheckout = ({
   const [pointsToUse, setPointsToUse] = useState(0);
   const [transactionRef, setTransactionRef] = useState('');
   const pulseOpacity = useSharedValue(1);
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) {
+      setShowQr(false);
+      setTransactionRef('');
+    }
+  }, [isFocused]);
 
   const pointsCost = Math.ceil(totalAmount * POINTS_PER_DOLLAR);
   const maxPoints = Math.min(balance, pointsCost);
@@ -68,7 +102,7 @@ const CustomerCheckout = ({
     opacity: pulseOpacity.value,
   }));
 
-  const adjustPoints = (delta) => {
+  const adjustPoints = (delta: number) => {
     setPointsToUse((prev) => {
       const step = 100; // adjust by 100 dandan at a time
       const next = prev + delta * step;
@@ -82,7 +116,17 @@ const CustomerCheckout = ({
     if (onConfirm) {
       await onConfirm(pointsToUse, merchantName);
     }
-    setShowQr(true);
+    
+    if (onConfirmSuccess) {
+      onConfirmSuccess({
+        amount: totalAmount,
+        pointsUsed: pointsToUse,
+        merchantName: merchantName,
+        transactionRef: ref
+      });
+    } else {
+      setShowQr(true);
+    }
   };
 
   const qrPayload = JSON.stringify({
@@ -285,7 +329,7 @@ const CustomerCheckout = ({
               <Text
                 style={[
                   styles.breakdownValue,
-                  remainingBalance < 1000 && { color: '#ef4444' },
+                  remainingBalance < 1000 ? { color: '#ef4444' } : undefined,
                 ]}
               >
                 {remainingBalance.toLocaleString()} dandan
@@ -298,7 +342,7 @@ const CustomerCheckout = ({
       {/* Fixed Footer with Submit Button */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
-          style={[styles.payBtn, !canPay && { opacity: 0.5 }]}
+          style={[styles.payBtn, !canPay ? { opacity: 0.5 } : undefined]}
           onPress={handleConfirm}
           disabled={!canPay}
         >

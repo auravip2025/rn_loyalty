@@ -41,6 +41,17 @@ export default function CheckoutPage() {
             onConfirm={async (pointsUsed: number, merchant: string) => {
                 await deductPoints(pointsUsed, merchant);
             }}
+            onConfirmSuccess={(details: any) => {
+                router.push({
+                    pathname: '/(customer)/payment-success',
+                    params: {
+                        amount: details.amount,
+                        pointsUsed: details.pointsUsed,
+                        merchantName: details.merchantName,
+                        transactionRef: details.transactionRef
+                    }
+                });
+            }}
             onDone={() => router.back()}
             onCancel={() => router.back()}
         />

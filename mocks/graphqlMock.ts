@@ -77,8 +77,135 @@ export const GET_CHAT_SUGGESTIONS = `
 export const DEDUCT_POINTS = `mutation DeductPoints($amount: Int!, $merchant: String!) { deductPoints(amount: $amount, merchant: $merchant) { success wallet { balance } } }`;
 export const EARN_POINTS = `mutation EarnPoints($amount: Int!, $merchant: String!) { earnPoints(amount: $amount, merchant: $merchant) { success wallet { balance } } }`;
 
+export const GET_RECENT_STORES = `
+  query GetRecentStores {
+    recentStores {
+      id
+      name
+      image
+      visitDate
+      pointsEarned
+    }
+  }
+`;
+
+interface Segment {
+  label: string;
+  color: string;
+  type: string;
+  value: any;
+}
+
+interface Program {
+  id: number;
+  name: string;
+  desc: string;
+  active?: boolean;
+  icon: string;
+  color: string;
+  segments?: Segment[];
+  merchantId?: string;
+}
+
+interface Offer {
+  id: string | number;
+  title: string;
+  desc: string;
+  discount?: string;
+  expires?: string;
+  image?: string;
+  price?: number;
+}
+
+interface Review {
+  author: string;
+  rating: number;
+  text: string;
+  date: string;
+}
+
+interface Merchant {
+  id: string;
+  name: string;
+  category: string;
+  categoryEmoji: string;
+  distance: string;
+  rating: number;
+  reviewCount: number;
+  open: boolean;
+  visitCount: number;
+  address: string;
+  phone: string;
+  hours: string;
+  website: string;
+  image: string;
+  description: string;
+  tags: string[];
+  programs: Program[];
+  offers: Offer[];
+  reviews: Review[];
+}
+
+interface Transaction {
+  id: number;
+  merchant: string;
+  amount: number;
+  type: 'earn' | 'spend';
+  date: string;
+}
+
+interface Wallet {
+  balance: number;
+  transactions: Transaction[];
+}
+
+interface DailyQuest {
+  id: number;
+  title: string;
+  desc: string;
+  points: number;
+  icon: string;
+  completed: boolean;
+}
+
+interface StoreMenuItem {
+  id: string;
+  title: string;
+  price: number;
+  image: string;
+}
+
+interface ChatSuggestion {
+  id: string;
+  question: string;
+  responseType: string;
+  responseText: string;
+  shops?: { name: string; rating: number; distance: string; img: string }[];
+  featured?: { title: string; sub: string; img: string };
+  deals?: { title: string; price: string; loc: string }[];
+}
+
+interface RecentStore {
+  id: string;
+  name: string;
+  image: string;
+  visitDate: string;
+  pointsEarned: number;
+}
+
+interface MockDB {
+  merchants: Merchant[];
+  programs: Program[];
+  wallet: Wallet;
+  dailyQuests: DailyQuest[];
+  offers: Offer[];
+  storeMenus: Record<string, StoreMenuItem[]>;
+  chatSuggestions: ChatSuggestion[];
+  recentStores: RecentStore[];
+}
+
 // MOCK DATABASE
-let DB = {
+let DB: MockDB = {
     merchants: [
         {
             id: 'm1', name: 'The Coffee House', category: 'Café', categoryEmoji: '☕',
@@ -357,18 +484,23 @@ let DB = {
                 { title: 'Nasi Lemak Set', price: '$5.00', loc: 'Bagus Food Court' },
             ]
         }
+    ],
+    recentStores: [
+        { id: 'm1', name: 'The Coffee House', image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600', visitDate: '2 hours ago', pointsEarned: 15 },
+        { id: 'm6', name: 'Din Tai Fung', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=600', visitDate: 'Yesterday', pointsEarned: 45 },
+        { id: 'm4', name: 'Green Grocer', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600', visitDate: '3 days ago', pointsEarned: 20 },
     ]
 };
 
 // SIMULATED HOOKS
-export const useQuery = (query, options = {}) => {
-    const [data, setData] = useState(null);
+export const useQuery = (query: string, options: any = {}) => {
+    const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<any>(null);
 
     const refetch = async () => {
         setLoading(true);
-        return new Promise((resolve) => {
+        return new Promise<void>((resolve) => {
             setTimeout(() => {
                 console.log("🛠️ Mock GraphQL executing:", query?.substring(0, 30));
 
@@ -392,6 +524,9 @@ export const useQuery = (query, options = {}) => {
                 } else if (query === GET_CHAT_SUGGESTIONS) {
                     setData({ chatSuggestions: JSON.parse(JSON.stringify(DB.chatSuggestions)) });
                     console.log("🛠️ Mock GraphQL GET_CHAT_SUGGESTIONS executed successfully");
+                } else if (query === GET_RECENT_STORES) {
+                    setData({ recentStores: JSON.parse(JSON.stringify(DB.recentStores)) });
+                    console.log("🛠️ Mock GraphQL GET_RECENT_STORES executed successfully");
                 } else {
                     console.warn("🛠️ Mock GraphQL query not found in DB match map: ", query);
                 }
@@ -408,27 +543,35 @@ export const useQuery = (query, options = {}) => {
     return { data, loading, error, refetch };
 };
 
-export const useMutation = (mutation) => {
+export const useMutation = (mutation: string) => {
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<any>(null);
 
-    const mutate = async ({ variables }) => {
+    const mutate = async ({ variables }: { variables: any }) => {
         setLoading(true);
-        return new Promise((resolve, reject) => {
+        return new Promise<any>((resolve, reject) => {
             setTimeout(() => {
                 setLoading(false);
                 try {
                     if (mutation === DEDUCT_POINTS) {
                         DB.wallet.balance -= variables.amount;
-                        const newTx = {
-                            id: Date.now(), merchant: variables.merchant, amount: variables.amount, type: 'spend', date: 'Just now',
+                        const newTx: Transaction = {
+                          id: Date.now(),
+                          merchant: variables.merchant,
+                          amount: variables.amount,
+                          type: 'spend' as const,
+                          date: 'Just now',
                         };
                         DB.wallet.transactions.unshift(newTx);
                         resolve({ data: { deductPoints: { success: true, wallet: DB.wallet } } });
                     } else if (mutation === EARN_POINTS) {
                         DB.wallet.balance += variables.amount;
-                        const newTx = {
-                            id: Date.now(), merchant: variables.merchant, amount: variables.amount, type: 'earn', date: 'Just now',
+                        const newTx: Transaction = {
+                          id: Date.now(),
+                          merchant: variables.merchant,
+                          amount: variables.amount,
+                          type: 'earn' as const,
+                          date: 'Just now',
                         };
                         DB.wallet.transactions.unshift(newTx);
                         resolve({ data: { earnPoints: { success: true, wallet: DB.wallet } } });
@@ -475,5 +618,5 @@ export const useMutation = (mutation) => {
         });
     };
 
-    return [mutate, { loading, error }];
+    return [mutate, { loading, error }] as const;
 };
