@@ -16,7 +16,7 @@ import {
   Tag,
   X,
 } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Image,
   Linking,
@@ -26,7 +26,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
+import * as Location from 'expo-location';
 import Animated, {
   Easing,
   FadeIn,
@@ -39,7 +41,54 @@ import Animated, {
 import Badge from '../../components/old_app/common/Badge';
 import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
-import { GET_MERCHANTS, useQuery } from '../../api/client';
+import { GET_NEARBY, useQuery } from '../../api/client';
+
+// ─── Interfaces ───────────────────────────────────────────────────────────────
+
+interface Program {
+  id: number;
+  name: string;
+  desc: string;
+  active?: boolean;
+  color?: string;
+}
+
+interface Offer {
+  id: string;
+  title: string;
+  desc: string;
+  discount: string;
+  expires: string;
+}
+
+interface Review {
+  author: string;
+  rating: number;
+  text: string;
+  date: string;
+}
+
+interface Merchant {
+  id: string;
+  name: string;
+  category: string;
+  categoryEmoji: string;
+  distance: string;
+  rating: number;
+  reviewCount: number;
+  open: boolean;
+  visitCount: number;
+  address: string;
+  phone: string;
+  hours: string;
+  website: string;
+  image: string;
+  description: string;
+  tags: string[];
+  programs: Program[];
+  offers: Offer[];
+  reviews: Review[];
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = ['All', '☕ Café', '👗 Fashion', '🍜 Restaurant', '💻 Electronics', '🛒 Grocery', '💪 Fitness'];
@@ -47,7 +96,9 @@ const SORT_OPTIONS = [
   { key: 'distance', label: 'Nearest' },
   { key: 'rating', label: 'Top Rated' },
   { key: 'popular', label: 'Popular' },
-];
+] as const;
+
+type SortKey = typeof SORT_OPTIONS[number]['key'];
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 const Spinner = () => {
@@ -63,8 +114,8 @@ const Spinner = () => {
 };
 
 // ─── Tag Badge ────────────────────────────────────────────────────────────────
-const TagBadge = ({ label }) => {
-  const map = {
+const TagBadge = ({ label }: { label: string }) => {
+  const map: Record<string, { bg: string; text: string; border: string }> = {
     Popular: { bg: '#fef3c7', text: '#d97706', border: '#fde68a' },
     Trending: { bg: '#fce7f3', text: '#db2777', border: '#fbcfe8' },
     New: { bg: '#dcfce7', text: '#16a34a', border: '#bbf7d0' },
@@ -79,7 +130,7 @@ const TagBadge = ({ label }) => {
 };
 
 // ─── Merchant List Card ───────────────────────────────────────────────────────
-const MerchantCard = ({ merchant, index, onPress }) => (
+const MerchantCard = ({ merchant, index, onPress }: { merchant: Merchant; index: number; onPress: (m: Merchant) => void }) => (
   <Animated.View entering={FadeInDown.delay(index * 80).duration(400)}>
     <TouchableOpacity onPress={() => onPress(merchant)} activeOpacity={0.85}>
       <Card style={styles.merchantCard}>
@@ -130,7 +181,7 @@ const MerchantCard = ({ merchant, index, onPress }) => (
 );
 
 // ─── Recommendation Card ──────────────────────────────────────────────────────
-const RecoCard = ({ merchant, onPress }) => (
+const RecoCard = ({ merchant, onPress }: { merchant: Merchant; onPress: (m: Merchant) => void }) => (
   <TouchableOpacity onPress={() => onPress(merchant)} style={styles.recoCard} activeOpacity={0.85}>
     <Image source={{ uri: merchant.image }} style={StyleSheet.absoluteFillObject} />
     <View style={styles.recoOverlay} />
@@ -152,7 +203,7 @@ const RecoCard = ({ merchant, onPress }) => (
 );
 
 // ─── Merchant Detail Sheet ────────────────────────────────────────────────────
-const MerchantDetail = ({ merchant, onClose }) => {
+const MerchantDetail = ({ merchant, onClose }: { merchant: Merchant; onClose: () => void }) => {
   const [activeTab, setActiveTab] = useState('offers');
 
   return (
@@ -211,7 +262,7 @@ const MerchantDetail = ({ merchant, onClose }) => {
               ].map(({ Icon, value, color }, i) => (
                 <View key={i} style={styles.infoRow}>
                   <Icon size={14} color="#64748b" />
-                  <Text style={[styles.infoValue, color && { color }]}>{value}</Text>
+                  <Text style={[styles.infoValue, color ? { color } : null]}>{value}</Text>
                 </View>
               ))}
             </View>
@@ -267,7 +318,7 @@ const MerchantDetail = ({ merchant, onClose }) => {
                       <Text style={styles.progName}>{prog.name}</Text>
                       <Text style={styles.progDesc}>{prog.desc}</Text>
                     </View>
-                    <Badge color={prog.color || 'indigo'}>Active</Badge>
+                    <Badge color={(prog.color as any) || 'indigo'}>Active</Badge>
                   </Card>
                 ))}
               </View>
@@ -316,19 +367,58 @@ const MerchantDetail = ({ merchant, onClose }) => {
 };
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-const NearbyStores = ({ onBack }) => {
-  const [status, setStatus] = useState('prompt');
+interface NearbyStoresProps {
+  onBack: () => void;
+}
+
+const NearbyStores: React.FC<NearbyStoresProps> = ({ onBack }) => {
+  const [status, setStatus] = useState<'prompt' | 'loading' | 'ready'>('prompt');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sortBy, setSortBy] = useState('distance');
-  const [selectedMerchant, setSelectedMerchant] = useState(null);
+  const [sortBy, setSortBy] = useState<SortKey>('distance');
+  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
+  
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [locationName, setLocationName] = useState('Orchard, SG');
 
-  const { data } = useQuery(GET_MERCHANTS);
-  const allMerchants = data?.merchants || [];
+  const { data } = useQuery(GET_NEARBY, {
+    variables: location ? { 
+        lat: location.coords.latitude, 
+        lng: location.coords.longitude 
+    } : null 
+  });
+  
+  const allMerchants: Merchant[] = data?.merchants || [];
 
-  const handleAllowAccess = () => {
+  const handleAllowAccess = async () => {
     setStatus('loading');
-    setTimeout(() => setStatus('ready'), 1400);
+    try {
+      const { status: authStatus } = await Location.requestForegroundPermissionsAsync();
+      if (authStatus !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access location was denied');
+        setStatus('prompt');
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc);
+      
+      const reverse = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+
+      if (reverse[0]) {
+        const addr = reverse[0];
+        setLocationName(`${addr.city || addr.district || 'Nearby'}, ${addr.isoCountryCode || 'SG'}`);
+      }
+      
+      setStatus('ready');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to get your current location');
+      setStatus('prompt');
+    }
   };
 
   const displayMerchants = useMemo(() => {
@@ -404,7 +494,7 @@ const NearbyStores = ({ onBack }) => {
         <Text style={styles.headerTitle}>Nearby</Text>
         <View style={styles.locPill}>
           <MapPin size={11} color="#4f46e5" />
-          <Text style={styles.locText}>Orchard, SG</Text>
+          <Text style={styles.locText}>{locationName}</Text>
         </View>
       </View>
 

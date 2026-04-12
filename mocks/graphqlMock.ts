@@ -97,6 +97,12 @@ export const GET_REWARDS = `
   }
 `;
 
+export const GET_NEARBY = `
+  query GetNearby {
+    merchants { id name category categoryEmoji distance rating reviewCount open address phone hours website image description tags visitCount programs { id name desc active icon color segments } offers { id title desc discount expires } reviews { author rating text date } }
+  }
+`;
+
 interface Segment {
   label: string;
   color: string;
@@ -390,6 +396,30 @@ let DB: MockDB = {
                 { author: 'Martin L.', rating: 5, text: 'Queues are worth it. The best DTF branch in Singapore.', date: '3 days ago' },
             ],
         },
+        {
+            id: 'm7', name: 'Artisan Boulangerie', category: 'Café', categoryEmoji: '🥐',
+            distance: '0.4 km', rating: 4.6, reviewCount: 245, open: true, visitCount: 890,
+            address: '78 Killiney Road', phone: '+65 6734 5678',
+            hours: 'Mon–Sun: 8:00 AM – 8:00 PM', website: 'artisan.sg',
+            image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600',
+            description: 'Traditional French bakery specializing in sourdough and handcrafted pastries.',
+            tags: ['Trending'],
+            programs: [{ id: 1, name: 'Loyalty Points', desc: '1 pt per $1 spent', active: true, icon: 'Star', color: 'indigo' }],
+            offers: [{ id: 'o12', title: 'Coffee & Croissant', desc: 'Daily before 10 AM', discount: '$7.50 SET', expires: 'Ongoing' }],
+            reviews: [{ author: 'Lea M.', rating: 5, text: 'The best croissants in Singapore!', date: '3 days ago' }],
+        },
+        {
+            id: 'm8', name: 'Yoga Movement', category: 'Fitness', categoryEmoji: '🧘',
+            distance: '0.6 km', rating: 4.9, reviewCount: 890, open: true, visitCount: 3400,
+            address: '22 Orchard Road', phone: '+65 6235 6789',
+            hours: 'Mon–Sun: 7:00 AM – 9:00 PM', website: 'yogamovement.com',
+            image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600',
+            description: 'Accessible yoga for everyone. Multi-level classes in a beautiful space.',
+            tags: ['Popular'],
+            programs: [{ id: 6, name: 'Tiered Loyalty', desc: 'Member perks', active: true, icon: 'Crown', color: 'purple' }],
+            offers: [{ id: 'o13', title: 'First Class $20', desc: 'Intro offer', discount: '$20 INTRO', expires: 'Ongoing' }],
+            reviews: [{ author: 'David K.', rating: 5, text: 'Great instructors and vibe.', date: '1 week ago' }],
+        },
     ],
     programs: [
         {
@@ -582,7 +612,8 @@ export const useQuery = (query: string, options: any = {}) => {
         setLoading(true);
         return new Promise<void>((resolve) => {
             setTimeout(() => {
-                console.log("🛠️ Mock GraphQL executing:", query?.substring(0, 30));
+                const variables = options.variables || {};
+                console.log(`🚀 [Mock GraphQL Request]: ${query?.substring(0, 30)}...`, variables);
 
                 if (query === GET_MERCHANTS) {
                     setData({ merchants: JSON.parse(JSON.stringify(DB.merchants)) });
@@ -610,6 +641,11 @@ export const useQuery = (query: string, options: any = {}) => {
                 } else if (query === GET_REWARDS) {
                     setData({ rewards: JSON.parse(JSON.stringify(DB.rewards)) });
                     console.log("🛠️ Mock GraphQL GET_REWARDS executed successfully");
+                } else if (query === GET_NEARBY) {
+                    console.log(`📍 Nearby search for Lat: ${variables.lat}, Lng: ${variables.lng}`);
+                    // You could filter DB.merchants here if you had coordinates for them
+                    setData({ merchants: JSON.parse(JSON.stringify(DB.merchants)) });
+                    console.log("🛠️ Mock GraphQL GET_NEARBY executed successfully");
                 } else {
                     console.warn("🛠️ Mock GraphQL query not found in DB match map: ", query);
                 }
@@ -621,7 +657,7 @@ export const useQuery = (query: string, options: any = {}) => {
 
     useEffect(() => {
         refetch();
-    }, [query]);
+    }, [query, JSON.stringify(options.variables)]);
 
     return { data, loading, error, refetch };
 };
