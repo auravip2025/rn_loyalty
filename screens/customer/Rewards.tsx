@@ -1,73 +1,48 @@
 import { ArrowLeft, Lock } from 'lucide-react-native';
 import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import Badge from '../../components/old_app/common/Badge';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
+import { useQuery, GET_REWARDS } from '../../api/client';
 
-const REWARDS = [
-    {
-        id: 1,
-        title: 'Free Coffee',
-        cost: 500,
-        type: 'single',
-        image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=400',
-        locked: false,
-    },
-    {
-        id: 101,
-        title: '10x Coffee Pass',
-        cost: 4500,
-        price: 45.00,
-        type: 'bundle',
-        bundleCount: 10,
-        originalCost: 5000,
-        originalPrice: 50.00,
-        image: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&q=80&w=400',
-        locked: false,
-    },
-    {
-        id: 102,
-        title: '5x Lunch Set',
-        cost: 6000,
-        price: 60.00,
-        type: 'bundle',
-        bundleCount: 5,
-        originalCost: 7500,
-        originalPrice: 75.00,
-        image: 'https://images.unsplash.com/photo-1549396535-c11d5c55b9df?auto=format&fit=crop&q=80&w=400',
-        locked: false,
-    },
-    {
-        id: 2,
-        title: '$10 Voucher',
-        cost: 1000,
-        type: 'single',
-        image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=400',
-        locked: false,
-    },
-    {
-        id: 3,
-        title: 'Premium T-Shirt',
-        cost: 2500,
-        type: 'single',
-        image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=400',
-        locked: true,
-    },
-    {
-        id: 4,
-        title: 'VIP Access Pass',
-        cost: 5000,
-        type: 'single',
-        image: 'https://images.unsplash.com/photo-1560416313-21c60623a808?auto=format&fit=crop&q=80&w=400',
-        locked: true,
-    },
-];
+interface Reward {
+  id: number;
+  title: string;
+  cost: number;
+  type: 'single' | 'bundle';
+  image: string;
+  locked: boolean;
+  price?: number;
+  bundleCount?: number;
+  originalCost?: number;
+  originalPrice?: number;
+  isCash?: boolean;
+}
 
-const Rewards = ({ onBack, balance, onRedeem }) => {
-    const bundles = REWARDS.filter(r => r.type === 'bundle');
-    const singles = REWARDS.filter(r => r.type === 'single' || !r.type);
+interface RewardsProps {
+  onBack: () => void;
+  balance: number;
+  onRedeem: (reward: Reward) => void;
+}
+
+const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
+    const { data, loading, error } = useQuery(GET_REWARDS);
+
+    if (loading) {
+        return (
+            <ScreenWrapper>
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color="#4f46e5" />
+                </View>
+            </ScreenWrapper>
+        );
+    }
+
+    const rewards: Reward[] = data?.rewards || [];
+    const bundles = rewards.filter(r => r.type === 'bundle');
+    const singles = rewards.filter(r => r.type === 'single' || !r.type);
 
     return (
         <ScreenWrapper paddingHorizontal={0}>
@@ -104,7 +79,7 @@ const Rewards = ({ onBack, balance, onRedeem }) => {
                                         <Text style={styles.rewardTitle}>{reward.title}</Text>
                                         <Text style={styles.rewardCost}>
                                             {reward.cost} dandan
-                                            <Text style={styles.originalCost}> {reward.originalCost}</Text>
+                                            {reward.originalCost && <Text style={styles.originalCost}> {reward.originalCost}</Text>}
                                         </Text>
                                         <View style={styles.bundleInfo}>
                                             <Badge color="indigo">{reward.bundleCount} items</Badge>
@@ -176,6 +151,11 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#ffffff',
     },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -226,6 +206,9 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#94a3b8',
     },
+    ssection: {
+        // section
+    },
     sectionTitle: {
         fontSize: 14,
         fontWeight: '900',
@@ -269,6 +252,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: 'bold',
         color: '#64748b',
+        marginLeft: 6,
     },
     originalCost: {
         textDecorationLine: 'line-through',

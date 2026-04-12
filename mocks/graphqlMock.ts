@@ -89,6 +89,14 @@ export const GET_RECENT_STORES = `
   }
 `;
 
+export const GET_REWARDS = `
+  query GetRewards {
+    rewards {
+      id title cost type image locked price bundleCount originalCost originalPrice
+    }
+  }
+`;
+
 interface Segment {
   label: string;
   color: string;
@@ -193,6 +201,19 @@ interface RecentStore {
   pointsEarned: number;
 }
 
+interface Reward {
+  id: number;
+  title: string;
+  cost: number;
+  type: 'single' | 'bundle';
+  image: string;
+  locked: boolean;
+  price?: number;
+  bundleCount?: number;
+  originalCost?: number;
+  originalPrice?: number;
+}
+
 interface MockDB {
   merchants: Merchant[];
   programs: Program[];
@@ -202,6 +223,7 @@ interface MockDB {
   storeMenus: Record<string, StoreMenuItem[]>;
   chatSuggestions: ChatSuggestion[];
   recentStores: RecentStore[];
+  rewards: Reward[];
 }
 
 // MOCK DATABASE
@@ -489,6 +511,64 @@ let DB: MockDB = {
         { id: 'm1', name: 'The Coffee House', image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600', visitDate: '2 hours ago', pointsEarned: 15 },
         { id: 'm6', name: 'Din Tai Fung', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=600', visitDate: 'Yesterday', pointsEarned: 45 },
         { id: 'm4', name: 'Green Grocer', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600', visitDate: '3 days ago', pointsEarned: 20 },
+    ],
+    rewards: [
+        {
+            id: 1,
+            title: 'Free Coffee',
+            cost: 500,
+            type: 'single',
+            image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=400',
+            locked: false,
+        },
+        {
+            id: 101,
+            title: '10x Coffee Pass',
+            cost: 4500,
+            price: 45.00,
+            type: 'bundle',
+            bundleCount: 10,
+            originalCost: 5000,
+            originalPrice: 50.00,
+            image: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&q=80&w=400',
+            locked: false,
+        },
+        {
+            id: 102,
+            title: '5x Lunch Set',
+            cost: 6000,
+            price: 60.00,
+            type: 'bundle',
+            bundleCount: 5,
+            originalCost: 7500,
+            originalPrice: 75.00,
+            image: 'https://images.unsplash.com/photo-1549396535-c11d5c55b9df?auto=format&fit=crop&q=80&w=400',
+            locked: false,
+        },
+        {
+            id: 2,
+            title: '$10 Voucher',
+            cost: 1000,
+            type: 'single',
+            image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=400',
+            locked: false,
+        },
+        {
+            id: 3,
+            title: 'Premium T-Shirt',
+            cost: 2500,
+            type: 'single',
+            image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=400',
+            locked: true,
+        },
+        {
+            id: 4,
+            title: 'VIP Access Pass',
+            cost: 5000,
+            type: 'single',
+            image: 'https://images.unsplash.com/photo-1560416313-21c60623a808?auto=format&fit=crop&q=80&w=400',
+            locked: true,
+        },
     ]
 };
 
@@ -527,6 +607,9 @@ export const useQuery = (query: string, options: any = {}) => {
                 } else if (query === GET_RECENT_STORES) {
                     setData({ recentStores: JSON.parse(JSON.stringify(DB.recentStores)) });
                     console.log("🛠️ Mock GraphQL GET_RECENT_STORES executed successfully");
+                } else if (query === GET_REWARDS) {
+                    setData({ rewards: JSON.parse(JSON.stringify(DB.rewards)) });
+                    console.log("🛠️ Mock GraphQL GET_REWARDS executed successfully");
                 } else {
                     console.warn("🛠️ Mock GraphQL query not found in DB match map: ", query);
                 }
