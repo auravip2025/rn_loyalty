@@ -162,6 +162,7 @@ export const EARN_POINTS = mockClient.EARN_POINTS;
 export const GET_RECENT_STORES = mockClient.GET_RECENT_STORES;
 export const GET_REWARDS = mockClient.GET_REWARDS;
 export const GET_NEARBY = mockClient.GET_NEARBY;
+export const GET_NOTIFICATIONS = mockClient.GET_NOTIFICATIONS;
 
 export const AUTHENTICATE = `
   mutation Authenticate($email: String!) {

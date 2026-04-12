@@ -103,6 +103,12 @@ export const GET_NEARBY = `
   }
 `;
 
+export const GET_NOTIFICATIONS = `
+  query GetNotifications {
+    notifications { id title message type date read link }
+  }
+`;
+
 interface Segment {
   label: string;
   color: string;
@@ -599,6 +605,44 @@ let DB: MockDB = {
             image: 'https://images.unsplash.com/photo-1560416313-21c60623a808?auto=format&fit=crop&q=80&w=400',
             locked: true,
         },
+    ],
+    notifications: [
+        {
+            id: '1',
+            title: 'Points Earned!',
+            message: 'You just earned 15 points at The Coffee House. Keep it up!',
+            type: 'earn',
+            date: '2 minutes ago',
+            read: false,
+            link: '/(customer)/wallet'
+        },
+        {
+            id: '2',
+            title: 'New Offer Available',
+            message: 'Flash sale at Uniqlo! Get 20% off all winter wear for the next 4 hours.',
+            type: 'offer',
+            date: '1 hour ago',
+            read: false,
+            link: '/(customer)/rewards'
+        },
+        {
+            id: '3',
+            title: 'Reward Unlocked',
+            message: 'Congratulations! You have unlocked a "Free Coffee" reward at The Coffee House.',
+            type: 'reward',
+            date: 'Yesterday',
+            read: true,
+            link: '/(customer)/rewards'
+        },
+        {
+            id: '4',
+            title: 'Welcome to DanDan',
+            message: 'Start exploring nearby merchants and earn rewards today!',
+            type: 'info',
+            date: 'Oct 24',
+            read: true,
+            link: '/(customer)/home'
+        },
     ]
 };
 
@@ -646,6 +690,9 @@ export const useQuery = (query: string, options: any = {}) => {
                     // You could filter DB.merchants here if you had coordinates for them
                     setData({ merchants: JSON.parse(JSON.stringify(DB.merchants)) });
                     console.log("🛠️ Mock GraphQL GET_NEARBY executed successfully");
+                } else if (query === GET_NOTIFICATIONS) {
+                    setData({ notifications: JSON.parse(JSON.stringify(DB.notifications)) });
+                    console.log("🛠️ Mock GraphQL GET_NOTIFICATIONS executed successfully");
                 } else {
                     console.warn("🛠️ Mock GraphQL query not found in DB match map: ", query);
                 }

@@ -280,7 +280,10 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
             <Text style={styles.greeting}>Good Morning</Text>
             <Text style={styles.userName}>Alex Johnson</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => router.push('/(customer)/notifications' as any)}
+          >
             <Bell size={20} color="#475569" />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
