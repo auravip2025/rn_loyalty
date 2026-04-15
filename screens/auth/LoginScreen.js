@@ -9,12 +9,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { fetchApi, IS_MOCK, MOCK_OTP } from '../../api/restClient';
+import { fetchApi } from '../../api/restClient';
 import Button from '../../components/old_app/common/Button';
 import Input from '../../components/old_app/common/Input';
 import { useAuth } from '../../contexts/AuthContext';
 
-// MOCK_OTP is imported from restClient (sourced from restMock) so it stays in sync
 
 const PLACEHOLDER_EMAILS = {
   customer: 'alex@dandan.io',
@@ -293,7 +292,6 @@ const LoginScreen = () => {
 
             {otpError ? <Text style={styles.otpErrorText}>{otpError}</Text> : null}
 
-            {IS_MOCK && <Text style={styles.demoHint}>Demo OTP: {MOCK_OTP}</Text>}
 
             <Button
               onPress={handleVerifyOtp}
@@ -452,13 +450,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: -4,
   },
-  demoHint: {
-    fontSize: 11,
-    color: '#94a3b8',
-    textAlign: 'center',
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
+
   resendRow: {
     alignItems: 'center',
   },

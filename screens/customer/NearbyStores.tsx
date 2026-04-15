@@ -382,10 +382,11 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({ onBack }) => {
   const [locationName, setLocationName] = useState('Orchard, SG');
 
   const { data } = useQuery(GET_NEARBY, {
-    variables: location ? { 
-        lat: location.coords.latitude, 
-        lng: location.coords.longitude 
-    } : null 
+    fetchPolicy: 'no-cache',
+    variables: location ? {
+        lat: location.coords.latitude,
+        lng: location.coords.longitude
+    } : null
   });
   
   const allMerchants: Merchant[] = data?.merchants || [];

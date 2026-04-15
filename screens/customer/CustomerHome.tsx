@@ -41,9 +41,12 @@ import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 interface Offer {
   id: string | number;
-  image: string;
+  image: string | null;
   title: string;
   desc: string;
+  discount?: string | null;
+  expires?: string | null;
+  price?: number;
 }
 
 interface Store {
@@ -115,9 +118,13 @@ const OfferCardItem: React.FC<OfferCardItemProps> = ({ offer, index, onPress }) 
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity onPress={onPress} style={styles.offerCard}>
-        <Image source={{ uri: offer.image }} style={styles.offerImage} />
+        {offer.image
+          ? <Image source={{ uri: offer.image }} style={styles.offerImage} />
+          : <View style={[styles.offerImage, styles.offerImagePlaceholder]} />
+        }
         <View style={styles.offerOverlay} />
         <View style={styles.offerContent}>
+          {offer.discount ? <Text style={styles.offerDiscount}>{offer.discount}</Text> : null}
           <Text style={styles.offerDesc}>{offer.desc}</Text>
           <Text style={styles.offerTitle}>{offer.title}</Text>
         </View>
@@ -372,28 +379,34 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
           </View>
         </View>
 
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          style={styles.offersScroll}
-          contentContainerStyle={styles.offersContainer}>
-          {offers?.map((offer, i) => (
-            <OfferCardItem
-              key={i}
-              offer={offer}
-              index={i}
-              onPress={() => {
-                router.push({
-                  pathname: '/(customer)/offer-details' as any,
-                  params: { offer: JSON.stringify(offer) }
-                });
-              }}
-            />
-          ))}
-        </ScrollView>
+        {offers && offers.length > 0 ? (
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            style={styles.offersScroll}
+            contentContainerStyle={styles.offersContainer}>
+            {offers.map((offer, i) => (
+              <OfferCardItem
+                key={offer.id ?? i}
+                offer={offer}
+                index={i}
+                onPress={() => {
+                  router.push({
+                    pathname: '/(customer)/offer-details' as any,
+                    params: { offer: JSON.stringify(offer) }
+                  });
+                }}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.offersEmpty}>
+            <Text style={styles.offersEmptyText}>No offers yet — check back soon!</Text>
+          </View>
+        )}
 
         {/* Categories Section */}
         <View style={styles.sectionHeader}>
@@ -607,6 +620,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 12,
   },
+  offersEmpty: {
+    marginBottom: 32,
+    padding: 20,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  offersEmptyText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
   offerCard: {
     width: 160,
     height: 144,
@@ -619,9 +644,12 @@ const styles = StyleSheet.create({
     height: '100%',
     position: 'absolute',
   },
+  offerImagePlaceholder: {
+    backgroundColor: '#1e293b',
+  },
   offerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
   offerContent: {
     position: 'absolute',
@@ -629,11 +657,19 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
   },
+  offerDiscount: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#fbbf24',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
   offerTitle: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#fbbf24', 
-    marginBottom: 4,
+    color: '#fbbf24',
+    marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     textShadowColor: 'rgba(0,0,0,0.75)',
@@ -641,10 +677,10 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   offerDesc: {
-    fontSize: 20, 
+    fontSize: 18,
     fontWeight: '900',
     color: '#ffffff',
-    lineHeight: 24,
+    lineHeight: 22,
     textShadowColor: 'rgba(0,0,0,0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 3,

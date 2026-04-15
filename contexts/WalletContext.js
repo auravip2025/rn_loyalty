@@ -1,25 +1,39 @@
 "use client";
-import React, { createContext, useContext } from 'react';
-import { DEDUCT_POINTS, EARN_POINTS, GET_WALLET, useMutation, useQuery } from '../api/client';
+import React, { createContext, useContext, useEffect } from 'react';
+import { client, DEDUCT_POINTS, EARN_POINTS, GET_WALLET, useMutation, useQuery } from '../api/client';
+import { useAuth } from './AuthContext';
 
 const WalletContext = createContext({});
 
 export const useWallet = () => useContext(WalletContext);
 
 export const WalletProvider = ({ children }) => {
-  const { data, loading, refetch } = useQuery(GET_WALLET);
+  const { isAuthenticated } = useAuth();
+  const { data, loading, refetch } = useQuery(GET_WALLET, { skip: !isAuthenticated });
   const [deductMutation] = useMutation(DEDUCT_POINTS);
   const [earnMutation] = useMutation(EARN_POINTS);
+
+  // When the user logs in: clear the entire Apollo cache so no stale query
+  // results (offers, rewards, nearby, etc.) survive from a previous session,
+  // then refetch the wallet with a fresh token.
+  useEffect(() => {
+    if (isAuthenticated) {
+      client.clearStore()
+        .then(() => refetch())
+        .catch(() => {}); // suppress any AbortError / unmount races
+    }
+  }, [isAuthenticated]);
 
   const balance = data?.wallet?.balance || 0;
   const transactions = data?.wallet?.transactions || [];
 
   const deductPoints = async (amount, merchant) => {
-    // Optimistic UI could be done here, but let's emulate network resolving
-    await deductMutation({ variables: { amount, merchant } });
-    await refetch();
-    // In our mock, the transaction is just created under the hood
-    // so returning a mock transaction to fulfill legacy promises
+    try {
+      await deductMutation({ variables: { amount, merchant } });
+      await refetch();
+    } catch (err) {
+      console.warn('[Wallet] deductPoints failed:', err?.message);
+    }
     return {
       id: Date.now(),
       merchant,
@@ -30,8 +44,12 @@ export const WalletProvider = ({ children }) => {
   };
 
   const earnPoints = async (amount, merchant) => {
-    await earnMutation({ variables: { amount, merchant } });
-    await refetch();
+    try {
+      await earnMutation({ variables: { amount, merchant } });
+      await refetch();
+    } catch (err) {
+      console.warn('[Wallet] earnPoints failed:', err?.message);
+    }
     return {
       id: Date.now(),
       merchant,
@@ -47,7 +65,8 @@ export const WalletProvider = ({ children }) => {
       transactions,
       deductPoints,
       earnPoints,
-      loading
+      refetch,
+      loading,
     }}>
       {children}
     </WalletContext.Provider>

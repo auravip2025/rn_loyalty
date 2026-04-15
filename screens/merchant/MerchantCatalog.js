@@ -1,17 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     Gift,
+    ImageIcon,
     Leaf,
     Package,
     Plus,
     Settings,
-    Trash2
+    Trash2,
+    X,
 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Animated,
+    Image,
     Modal,
     PanResponder,
     ScrollView,
@@ -82,6 +86,8 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
         isGreenReward: false,
         carbonOffsetKg: '',
         ecoDescription: '',
+        imageUri: null,
+        imageChanged: false,
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -100,6 +106,8 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                 isGreenReward: reward.isGreenReward || false,
                 carbonOffsetKg: reward.carbonOffsetKg ? String(reward.carbonOffsetKg) : '',
                 ecoDescription: reward.ecoDescription || '',
+                imageUri: reward.imageUrl || null,
+                imageChanged: false,
             } : {
                 name: '',
                 description: '',
@@ -111,9 +119,28 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                 isGreenReward: false,
                 carbonOffsetKg: '',
                 ecoDescription: '',
+                imageUri: null,
+                imageChanged: false,
             });
         }
     }, [visible, reward]);
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            setError('Photo library permission is required to upload images.');
+            return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!result.canceled) {
+            setForm(f => ({ ...f, imageUri: result.assets[0].uri, imageChanged: true }));
+        }
+    };
 
     const getAuthHeaders = async () => {
         const token = await AsyncStorage.getItem('@dandan_auth_token');
@@ -128,34 +155,52 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
         setSaving(true);
         setError(null);
         try {
-            const headers = await getAuthHeaders();
-            const payload = {
-                merchantId,
-                name: form.name.trim(),
-                description: form.description.trim() || null,
-                type: form.type,
-                price: parseFloat(form.price) || 0,
-                pointsPrice: form.pointsPrice ? parseInt(form.pointsPrice) : null,
-                stock: form.stock === '∞' ? 9999999 : parseInt(form.stock) || 0,
-                isEnabled: form.isEnabled,
-                isGreenReward: form.isGreenReward,
-                carbonOffsetKg: form.carbonOffsetKg ? parseFloat(form.carbonOffsetKg) : 0,
-                ecoDescription: form.ecoDescription.trim() || null,
-            };
+            const token = await AsyncStorage.getItem('@dandan_auth_token');
+            const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
             let res;
-            if (isEdit) {
-                res = await fetch(`${API_URL}/catalog/rewards/${reward.id}`, {
-                    method: 'PUT',
-                    headers,
-                    body: JSON.stringify(payload),
+            if (form.imageChanged && form.imageUri) {
+                const formData = new FormData();
+                formData.append('merchantId', String(merchantId));
+                formData.append('name', form.name.trim());
+                if (form.description.trim()) formData.append('description', form.description.trim());
+                formData.append('type', form.type);
+                formData.append('price', String(parseFloat(form.price) || 0));
+                if (form.pointsPrice) formData.append('pointsPrice', String(parseInt(form.pointsPrice)));
+                formData.append('stock', String(form.stock === '∞' ? 9999999 : parseInt(form.stock) || 0));
+                formData.append('isEnabled', String(form.isEnabled));
+                formData.append('isGreenReward', String(form.isGreenReward));
+                if (form.carbonOffsetKg) formData.append('carbonOffsetKg', String(parseFloat(form.carbonOffsetKg)));
+                if (form.ecoDescription.trim()) formData.append('ecoDescription', form.ecoDescription.trim());
+                const ext = form.imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+                formData.append('image', {
+                    uri: form.imageUri,
+                    name: `reward.${ext}`,
+                    type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
                 });
+                const url = isEdit
+                    ? `${API_URL}/catalog/rewards/${reward.id}`
+                    : `${API_URL}/catalog/rewards`;
+                res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: authHeader, body: formData });
             } else {
-                res = await fetch(`${API_URL}/catalog/rewards`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(payload),
-                });
+                const headers = { 'Content-Type': 'application/json', ...authHeader };
+                const payload = {
+                    merchantId,
+                    name: form.name.trim(),
+                    description: form.description.trim() || null,
+                    type: form.type,
+                    price: parseFloat(form.price) || 0,
+                    pointsPrice: form.pointsPrice ? parseInt(form.pointsPrice) : null,
+                    stock: form.stock === '∞' ? 9999999 : parseInt(form.stock) || 0,
+                    isEnabled: form.isEnabled,
+                    isGreenReward: form.isGreenReward,
+                    carbonOffsetKg: form.carbonOffsetKg ? parseFloat(form.carbonOffsetKg) : 0,
+                    ecoDescription: form.ecoDescription.trim() || null,
+                };
+                const url = isEdit
+                    ? `${API_URL}/catalog/rewards/${reward.id}`
+                    : `${API_URL}/catalog/rewards`;
+                res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers, body: JSON.stringify(payload) });
             }
 
             const data = await res.json();
@@ -203,6 +248,40 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                     <Text style={modalStyles.sheetTitle}>{isEdit ? 'Edit Reward' : 'New Reward Item'}</Text>
 
                     <ScrollView showsVerticalScrollIndicator={false} style={modalStyles.scroll}>
+
+                        {/* Image picker — preview matches customer card dimensions (100px wide side image) */}
+                        <View style={modalStyles.imageSection}>
+                            <Text style={modalStyles.label}>Reward Photo</Text>
+                            <View style={modalStyles.imagePreviewCard}>
+                                <TouchableOpacity style={modalStyles.imagePickerBox} onPress={pickImage} activeOpacity={0.75}>
+                                    {form.imageUri ? (
+                                        <Image source={{ uri: form.imageUri }} style={modalStyles.imagePreview} />
+                                    ) : (
+                                        <View style={modalStyles.imagePlaceholder}>
+                                            <ImageIcon size={22} color="#94a3b8" />
+                                            <Text style={modalStyles.imagePlaceholderText}>Tap to add photo</Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                                <View style={modalStyles.imageCardContent}>
+                                    <Text style={modalStyles.imageCardTitle} numberOfLines={1}>
+                                        {form.name.trim() || 'Reward Name'}
+                                    </Text>
+                                    <Text style={modalStyles.imageCardCost}>
+                                        {form.pointsPrice ? `${form.pointsPrice} pts` : '— pts'}
+                                    </Text>
+                                    <Text style={modalStyles.imageCardHint}>Customer card preview</Text>
+                                </View>
+                                {form.imageUri ? (
+                                    <TouchableOpacity
+                                        style={modalStyles.imageClearBtn}
+                                        onPress={() => setForm(f => ({ ...f, imageUri: null, imageChanged: true }))}
+                                    >
+                                        <X size={12} color="#fff" />
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+                        </View>
 
                         {/* Type toggle */}
                         <View style={modalStyles.typeRow}>
@@ -308,6 +387,73 @@ const modalStyles = StyleSheet.create({
     toggleBtnText: { fontSize: 12, fontWeight: '700', color: '#374151' },
     error: { fontSize: 12, color: '#dc2626', fontWeight: '600', marginTop: 8 },
     actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
+    // Image picker
+    imageSection: { marginBottom: 16 },
+    imagePreviewCard: {
+        flexDirection: 'row',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        overflow: 'hidden',
+        backgroundColor: '#f8fafc',
+        height: 90,
+    },
+    imagePickerBox: {
+        width: 100,
+        height: '100%',
+        backgroundColor: '#f1f5f9',
+    },
+    imagePreview: {
+        width: '100%',
+        height: '100%',
+    },
+    imagePlaceholder: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 4,
+    },
+    imagePlaceholderText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#94a3b8',
+        textAlign: 'center',
+    },
+    imageCardContent: {
+        flex: 1,
+        padding: 10,
+        justifyContent: 'center',
+        gap: 3,
+    },
+    imageCardTitle: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#0f172a',
+    },
+    imageCardCost: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#4f46e5',
+    },
+    imageCardHint: {
+        fontSize: 9,
+        fontWeight: '600',
+        color: '#cbd5e1',
+        marginTop: 4,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    imageClearBtn: {
+        position: 'absolute',
+        top: 6,
+        left: 6,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center' },
     cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#64748b' },
     saveBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#10b981', alignItems: 'center' },
@@ -465,10 +611,13 @@ const MerchantCatalog = () => {
                         <Card key={reward.id} style={styles.rewardCard}>
                             <View style={styles.rewardRow}>
                                 <View style={[styles.iconBox, !reward.isEnabled && styles.iconBoxDisabled]}>
-                                    {reward.isGreenReward
-                                        ? <Leaf size={22} color="#10b981" />
-                                        : <Icon size={22} color={reward.isEnabled ? '#6366f1' : '#94a3b8'} />
-                                    }
+                                    {reward.imageUrl ? (
+                                        <Image source={{ uri: reward.imageUrl }} style={styles.rewardThumb} />
+                                    ) : reward.isGreenReward ? (
+                                        <Leaf size={22} color="#10b981" />
+                                    ) : (
+                                        <Icon size={22} color={reward.isEnabled ? '#6366f1' : '#94a3b8'} />
+                                    )}
                                 </View>
 
                                 <View style={styles.rewardInfo}>
@@ -581,8 +730,9 @@ const styles = StyleSheet.create({
 
     rewardCard: { marginBottom: 12, padding: 14 },
     rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    iconBox: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+    iconBox: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
     iconBoxDisabled: { backgroundColor: '#f1f5f9' },
+    rewardThumb: { width: '100%', height: '100%' },
     rewardInfo: { flex: 1 },
     rewardNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
     rewardName: { fontSize: 14, fontWeight: '800', color: '#0f172a' },

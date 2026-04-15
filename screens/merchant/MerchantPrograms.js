@@ -230,6 +230,7 @@ const MerchantPrograms = () => {
     const { merchantProfile } = useAuth();
     const merchantId = merchantProfile?.id;
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     // ── View state machine: 'stores' | 'programs' | 'editor' ────────────────
     const [view, setView] = useState('stores');

@@ -158,6 +158,27 @@ const handlers = {
         });
     },
 
+    // POST /users/wallet/credit  (welcome bonus + any server-side credits)
+    '/users/wallet/credit': async ({ amount, type, description }) => {
+        await delay(MOCK_DELAY_MS);
+        console.log(`🛠️  [REST Mock] POST /users/wallet/credit → amount=${amount}, type=${type}`);
+        if (!amount || amount <= 0) {
+            return mockResponse({ success: false, message: 'Invalid amount.' }, false, 400);
+        }
+        return mockResponse({
+            success: true,
+            message: `${amount} tokens credited to wallet`,
+            balance: amount,
+            transaction: {
+                id: `mock_tx_${Date.now()}`,
+                amount,
+                type: type || 'WELCOME_BONUS',
+                description: description || 'Token credit',
+                createdAt: new Date().toISOString(),
+            },
+        });
+    },
+
     // POST /users/auth/refresh
     '/users/auth/refresh': async ({ refreshToken }) => {
         await delay(MOCK_DELAY_MS);
