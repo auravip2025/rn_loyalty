@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+    Check,
     Gift,
     ImageIcon,
     Leaf,
@@ -33,6 +34,9 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
+// Fallback list when the merchant has no store categories configured yet
+const REWARD_CATEGORIES = ['Food', 'Travel', 'Cosmetics', 'Retail', 'Fitness', 'Entertainment', 'Tech', 'Health', 'Other'];
+
 // ─── Reward type → display icon ───────────────────────────────────────────────
 const typeIcon = (type) => {
     if (type === 'BUNDLE') return Package;
@@ -40,7 +44,11 @@ const typeIcon = (type) => {
 };
 
 // ─── Create / Edit Modal ──────────────────────────────────────────────────────
-const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
+const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave, onClose }) => {
+    // Resolved category list: store-set categories, or fallback to full list
+    const availableCategories = storeCategories && storeCategories.length > 0
+        ? storeCategories
+        : REWARD_CATEGORIES;
     const isEdit = !!reward?.id;
     const translateY = useRef(new Animated.Value(0)).current;
 
@@ -86,11 +94,25 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
         isGreenReward: false,
         carbonOffsetKg: '',
         ecoDescription: '',
+        categories: [],
         imageUri: null,
         imageChanged: false,
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
+
+    // Derive the categories to pre-select when the form opens
+    const resolveInitialCategories = (rewardObj) => {
+        if (rewardObj) {
+            // Editing: use saved categories, or derive from legacy single category field
+            if (Array.isArray(rewardObj.categories) && rewardObj.categories.length > 0) {
+                return rewardObj.categories;
+            }
+            if (rewardObj.category) return [rewardObj.category];
+        }
+        // New reward: start with all store categories pre-selected
+        return availableCategories.length > 0 ? [...availableCategories] : [REWARD_CATEGORIES[0]];
+    };
 
     useEffect(() => {
         if (visible) {
@@ -106,6 +128,7 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                 isGreenReward: reward.isGreenReward || false,
                 carbonOffsetKg: reward.carbonOffsetKg ? String(reward.carbonOffsetKg) : '',
                 ecoDescription: reward.ecoDescription || '',
+                categories: resolveInitialCategories(reward),
                 imageUri: reward.imageUrl || null,
                 imageChanged: false,
             } : {
@@ -119,11 +142,12 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                 isGreenReward: false,
                 carbonOffsetKg: '',
                 ecoDescription: '',
+                categories: resolveInitialCategories(null),
                 imageUri: null,
                 imageChanged: false,
             });
         }
-    }, [visible, reward]);
+    }, [visible, reward, storeCategories]);
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -150,8 +174,23 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
         };
     };
 
+    const toggleCategory = (cat) => {
+        setForm(f => {
+            const already = f.categories.includes(cat);
+            // Enforce minimum 1: cannot deselect the last remaining category
+            if (already && f.categories.length === 1) return f;
+            return {
+                ...f,
+                categories: already
+                    ? f.categories.filter(c => c !== cat)
+                    : [...f.categories, cat],
+            };
+        });
+    };
+
     const handleSave = async () => {
         if (!form.name.trim()) { setError('Reward name is required'); return; }
+        if (form.categories.length === 0) { setError('Select at least one category'); return; }
         setSaving(true);
         setError(null);
         try {
@@ -170,6 +209,8 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                 formData.append('stock', String(form.stock === '∞' ? 9999999 : parseInt(form.stock) || 0));
                 formData.append('isEnabled', String(form.isEnabled));
                 formData.append('isGreenReward', String(form.isGreenReward));
+                formData.append('categories', JSON.stringify(form.categories));
+                formData.append('category', form.categories[0] || ''); // legacy BC
                 if (form.carbonOffsetKg) formData.append('carbonOffsetKg', String(parseFloat(form.carbonOffsetKg)));
                 if (form.ecoDescription.trim()) formData.append('ecoDescription', form.ecoDescription.trim());
                 const ext = form.imageUri.split('.').pop()?.toLowerCase() || 'jpg';
@@ -193,6 +234,8 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                     pointsPrice: form.pointsPrice ? parseInt(form.pointsPrice) : null,
                     stock: form.stock === '∞' ? 9999999 : parseInt(form.stock) || 0,
                     isEnabled: form.isEnabled,
+                    categories: form.categories,
+                    category: form.categories[0] || null, // legacy BC
                     isGreenReward: form.isGreenReward,
                     carbonOffsetKg: form.carbonOffsetKg ? parseFloat(form.carbonOffsetKg) : 0,
                     ecoDescription: form.ecoDescription.trim() || null,
@@ -298,6 +341,52 @@ const RewardFormModal = ({ visible, reward, merchantId, onSave, onClose }) => {
                             ))}
                         </View>
 
+                        {/* Category selection — multi-select, seeded from store categories */}
+                        <View style={modalStyles.field}>
+                            <View style={modalStyles.catHeaderRow}>
+                                <Text style={modalStyles.label}>Categories</Text>
+                                <Text style={modalStyles.catMinHint}>min. 1 required</Text>
+                            </View>
+                            <View style={modalStyles.catGrid}>
+                                {availableCategories.map(cat => {
+                                    const isSelected = form.categories.includes(cat);
+                                    const isLast = isSelected && form.categories.length === 1;
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat}
+                                            activeOpacity={isLast ? 1 : 0.75}
+                                            onPress={() => toggleCategory(cat)}
+                                            style={[
+                                                modalStyles.catPill,
+                                                isSelected && modalStyles.catPillSelected,
+                                                isLast && modalStyles.catPillLocked,
+                                            ]}
+                                        >
+                                            {isSelected && (
+                                                <View style={modalStyles.catCheck}>
+                                                    <Check size={10} color="#fff" />
+                                                </View>
+                                            )}
+                                            <Text style={[
+                                                modalStyles.catText,
+                                                isSelected && modalStyles.catTextSelected,
+                                            ]}>
+                                                {cat}
+                                            </Text>
+                                            {isLast && (
+                                                <Text style={modalStyles.catLockIcon}>🔒</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                            {availableCategories !== REWARD_CATEGORIES && (
+                                <Text style={modalStyles.catSourceNote}>
+                                    Based on your store's categories
+                                </Text>
+                            )}
+                        </View>
+
                         {field('Reward Name *', 'name', { placeholder: 'e.g. Free Flat White' })}
                         {field('Description', 'description', { placeholder: 'Optional', multiline: true })}
                         {field('Points Cost', 'pointsPrice', { placeholder: 'e.g. 200', numeric: true })}
@@ -387,6 +476,27 @@ const modalStyles = StyleSheet.create({
     toggleBtnText: { fontSize: 12, fontWeight: '700', color: '#374151' },
     error: { fontSize: 12, color: '#dc2626', fontWeight: '600', marginTop: 8 },
     actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
+    // Category multi-select
+    catHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+    catMinHint: { fontSize: 10, fontWeight: '700', color: '#94a3b8' },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+    catPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        paddingHorizontal: 12, paddingVertical: 8,
+        borderRadius: 100, borderWidth: 1.5, borderColor: '#e2e8f0',
+        backgroundColor: '#fff',
+    },
+    catPillSelected: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
+    catPillLocked: { opacity: 0.75 },
+    catCheck: {
+        width: 15, height: 15, borderRadius: 8,
+        backgroundColor: '#4f46e5',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    catText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
+    catTextSelected: { color: '#4f46e5', fontWeight: '800' },
+    catLockIcon: { fontSize: 10 },
+    catSourceNote: { fontSize: 10, color: '#94a3b8', fontWeight: '600', marginTop: 6 },
     // Image picker
     imageSection: { marginBottom: 16 },
     imagePreviewCard: {
@@ -470,6 +580,8 @@ const MerchantCatalog = () => {
     const [error, setError] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingReward, setEditingReward] = useState(null);
+    // Union of all categories set across the merchant's stores
+    const [storeCategories, setStoreCategories] = useState([]);
 
     const getAuthHeaders = async () => {
         const token = await AsyncStorage.getItem('@dandan_auth_token');
@@ -496,7 +608,28 @@ const MerchantCatalog = () => {
         }
     }, [merchantId]);
 
-    useEffect(() => { loadRewards(); }, [loadRewards]);
+    // Fetch all stores to collect their categories
+    const loadStoreCategories = useCallback(async () => {
+        if (!merchantId) return;
+        try {
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${API_URL}/stores/merchant/${merchantId}`, { headers });
+            if (!res.ok) return;
+            const stores = await res.json();
+            const catSet = new Set();
+            (Array.isArray(stores) ? stores : []).forEach(s => {
+                (s.settings?.categories || []).forEach(c => catSet.add(c));
+            });
+            if (catSet.size > 0) setStoreCategories([...catSet]);
+        } catch {
+            // Non-fatal; falls back to REWARD_CATEGORIES in the modal
+        }
+    }, [merchantId]);
+
+    useEffect(() => {
+        loadRewards();
+        loadStoreCategories();
+    }, [loadRewards, loadStoreCategories]);
 
     const handleOpenCreate = () => { setEditingReward(null); setModalVisible(true); };
     const handleOpenEdit = (reward) => { setEditingReward(reward); setModalVisible(true); };
@@ -687,6 +820,7 @@ const MerchantCatalog = () => {
                 visible={modalVisible}
                 reward={editingReward}
                 merchantId={merchantId}
+                storeCategories={storeCategories}
                 onSave={handleSave}
                 onClose={() => setModalVisible(false)}
             />

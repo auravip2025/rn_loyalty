@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
@@ -38,7 +39,24 @@ export default function ProfilePage() {
                     <TouchableOpacity style={[styles.outlineButton, isDark && styles.outlineButtonDark]}>
                         <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>Notification Center</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
+                    <TouchableOpacity
+                        style={[styles.outlineButton, styles.prefButton, isDark && styles.outlineButtonDark]}
+                        onPress={() => router.push({ pathname: '/(customer)/preferences', params: { mode: 'settings' } })}
+                    >
+                        <View style={styles.prefButtonLeft}>
+                            <View style={styles.prefDot} />
+                            <View style={styles.prefDot} />
+                            <View style={styles.prefDot} />
+                        </View>
+                        <View style={styles.prefButtonCenter}>
+                            <Text style={[styles.outlineButtonText, isDark && styles.textDark]}>
+                                Reward Preferences
+                            </Text>
+                            <Text style={styles.prefSubtext}>Food · Travel · Cosmetics and more</Text>
+                        </View>
+                        <ChevronRight size={16} color="#94a3b8" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
                         style={[styles.outlineButton, isDark && styles.outlineButtonDark]}
                         onPress={() => router.push('/(customer)/stats')}
                     >
@@ -138,6 +156,32 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#475569',
         textAlign: 'left',
+    },
+    prefButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    prefButtonLeft: {
+        flexDirection: 'row',
+        gap: 3,
+        alignItems: 'center',
+    },
+    prefDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#4f46e5',
+        opacity: 0.7,
+    },
+    prefButtonCenter: {
+        flex: 1,
+    },
+    prefSubtext: {
+        fontSize: 11,
+        color: '#94a3b8',
+        fontWeight: '500',
+        marginTop: 2,
     },
     themeButton: {
         padding: 16,

@@ -109,7 +109,7 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
                 if (!res.ok) throw new Error(`Server returned ${res.status}`);
                 const json = await res.json();
                 if (!cancelled) {
-                    const items = Array.isArray(json) ? json : [];
+                    const items = Array.isArray(json) ? json : (json.rewards || []);
                     setRewards(items.filter((r: RewardItem) => r.isEnabled));
                 }
             } catch (err: any) {

@@ -404,7 +404,9 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
           </ScrollView>
         ) : (
           <View style={styles.offersEmpty}>
-            <Text style={styles.offersEmptyText}>No offers yet — check back soon!</Text>
+            <Text style={styles.offersEmptyText}>
+              Set your preferences to see personalised rewards here.
+            </Text>
           </View>
         )}
 

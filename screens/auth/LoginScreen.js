@@ -127,7 +127,8 @@ const LoginScreen = () => {
         const loginResult = await loginWithOtp(
           (res.user?.email || res.merchant?.email || email).toLowerCase(),
           userRole,
-          newFlag
+          newFlag,
+          res.user?.id || res.merchant?.id || Date.now()
         );
 
         if (!loginResult.success) {

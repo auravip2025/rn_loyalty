@@ -98,6 +98,12 @@ export default function CustomerLayout() {
                     href: null,
                 }}
             />
+            <Tabs.Screen
+                name="preferences"
+                options={{
+                    href: null,
+                }}
+            />
         </Tabs>
     );
 }

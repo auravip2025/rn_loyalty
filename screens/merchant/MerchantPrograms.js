@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     ArrowLeft,
+    ArrowRight,
     Building2,
+    Check,
     ChevronRight,
     Coffee,
     Crown,
@@ -145,6 +147,19 @@ const PROGRAM_TEMPLATES = [
 
 const TEMPLATE_BY_KEY = Object.fromEntries(PROGRAM_TEMPLATES.map(t => [t.key, t]));
 
+// ─── Store categories (feeds recommendation engine) ───────────────────────────
+const STORE_CATEGORIES = [
+    { key: 'Food',          emoji: '🍔' },
+    { key: 'Travel',        emoji: '✈️' },
+    { key: 'Cosmetics',     emoji: '💄' },
+    { key: 'Retail',        emoji: '🛍️' },
+    { key: 'Fitness',       emoji: '💪' },
+    { key: 'Entertainment', emoji: '🎬' },
+    { key: 'Tech',          emoji: '💻' },
+    { key: 'Health',        emoji: '🏥' },
+    { key: 'Other',         emoji: '📦' },
+];
+
 const toApiConfiguration = (formData) => {
     // eslint-disable-next-line no-unused-vars
     const { icon, accent, bg, color, badge, badgeColor, id, key, programType, active, name, ...rest } = formData;
@@ -177,6 +192,7 @@ const StoreCard = ({ store, onPress }) => {
     const configs = store.programConfigs || [];
     const activeCount = configs.filter(c => c.isEnabled).length;
     const totalCount = configs.length;
+    const categories = store.settings?.categories || [];
 
     return (
         <TouchableOpacity style={styles.storeCard} onPress={() => onPress(store)} activeOpacity={0.75}>
@@ -190,6 +206,23 @@ const StoreCard = ({ store, onPress }) => {
                         ? 'No programs yet'
                         : `${activeCount} active · ${totalCount} total`}
                 </Text>
+                {categories.length > 0 && (
+                    <View style={styles.storeCategoryRow}>
+                        {categories.slice(0, 3).map(cat => {
+                            const found = STORE_CATEGORIES.find(c => c.key === cat);
+                            return (
+                                <View key={cat} style={styles.storeCategoryChip}>
+                                    <Text style={styles.storeCategoryText}>
+                                        {found ? `${found.emoji} ${cat}` : cat}
+                                    </Text>
+                                </View>
+                            );
+                        })}
+                        {categories.length > 3 && (
+                            <Text style={styles.storeCategoryMore}>+{categories.length - 3}</Text>
+                        )}
+                    </View>
+                )}
             </View>
             <ChevronRight size={18} color="#cbd5e1" />
         </TouchableOpacity>
@@ -242,6 +275,8 @@ const MerchantPrograms = () => {
     // ── Modal state ──────────────────────────────────────────────────────────
     const [showCreateStore, setShowCreateStore] = useState(false);
     const [newStoreName, setNewStoreName] = useState('');
+    const [createStep, setCreateStep] = useState(1);           // 1 = name, 2 = categories
+    const [selectedCategories, setSelectedCategories] = useState([]);
     const [showProgramPicker, setShowProgramPicker] = useState(false);
 
     // ── Async state ──────────────────────────────────────────────────────────
@@ -321,18 +356,35 @@ const MerchantPrograms = () => {
             const res = await fetch(`${API_URL}/stores/`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ merchantId, name, settings: {} }),
+                body: JSON.stringify({
+                    merchantId,
+                    name,
+                    settings: { categories: selectedCategories },
+                }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to create store');
-            setShowCreateStore(false);
-            setNewStoreName('');
+            closeCreateSheet();
             await loadStores();
         } catch (err) {
             setCreateStoreError(err.message);
         } finally {
             setCreatingStore(false);
         }
+    };
+
+    const closeCreateSheet = () => {
+        setShowCreateStore(false);
+        setNewStoreName('');
+        setCreateStep(1);
+        setSelectedCategories([]);
+        setCreateStoreError(null);
+    };
+
+    const toggleCategory = (key) => {
+        setSelectedCategories(prev =>
+            prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key]
+        );
     };
 
     // ── Navigate: store list → programs ──────────────────────────────────────
@@ -660,7 +712,7 @@ const MerchantPrograms = () => {
                     <Text style={styles.headerTitle}>Stores</Text>
                     <Text style={styles.headerSub}>{stores.length} store{stores.length !== 1 ? 's' : ''}</Text>
                 </View>
-                <TouchableOpacity onPress={() => { setCreateStoreError(null); setNewStoreName(''); setShowCreateStore(true); }} style={styles.addBtn}>
+                <TouchableOpacity onPress={() => { closeCreateSheet(); setShowCreateStore(true); }} style={styles.addBtn}>
                     <Plus size={20} color="#fff" />
                 </TouchableOpacity>
             </View>
@@ -688,7 +740,7 @@ const MerchantPrograms = () => {
                             Create your first store and set up loyalty programs to start rewarding customers.
                         </Text>
                         <TouchableOpacity
-                            onPress={() => { setCreateStoreError(null); setNewStoreName(''); setShowCreateStore(true); }}
+                            onPress={() => { closeCreateSheet(); setShowCreateStore(true); }}
                             style={styles.emptyBtn}
                         >
                             <Plus size={16} color="#fff" />
@@ -729,53 +781,163 @@ const MerchantPrograms = () => {
 
             </ScrollView>
 
-            {/* Create Store Modal */}
+            {/* Create Store Modal — 2-step: name → categories */}
             <Modal
                 visible={showCreateStore}
                 transparent
                 animationType="slide"
-                onRequestClose={() => setShowCreateStore(false)}
+                onRequestClose={closeCreateSheet}
             >
                 <TouchableOpacity
                     style={styles.modalOverlay}
                     activeOpacity={1}
-                    onPress={() => setShowCreateStore(false)}
+                    onPress={closeCreateSheet}
                 >
-                    <View style={[styles.createSheet, { paddingBottom: 40 }]}>
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        style={[styles.createSheet, { paddingBottom: insets.bottom + 24 }]}
+                        onPress={() => {}}
+                    >
+                        {/* Handle + header */}
                         <View style={styles.pickerHandle} />
                         <View style={styles.pickerHeader}>
-                            <Text style={styles.pickerTitle}>New Store</Text>
-                            <TouchableOpacity onPress={() => setShowCreateStore(false)} style={styles.pickerClose}>
+                            <View>
+                                <Text style={styles.pickerTitle}>
+                                    {createStep === 1 ? 'New Store' : 'Pick Categories'}
+                                </Text>
+                                <Text style={styles.pickerSub}>
+                                    {createStep === 1
+                                        ? 'Give your store a name to get started'
+                                        : 'Help customers find the right rewards for them'}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={closeCreateSheet} style={styles.pickerClose}>
                                 <Text style={styles.pickerCloseText}>✕</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={styles.inputLabel}>Store Name</Text>
-                        <TextInput
-                            style={styles.storeNameInput}
-                            placeholder="e.g. Main Branch, Orchard Outlet…"
-                            placeholderTextColor="#94a3b8"
-                            value={newStoreName}
-                            onChangeText={(t) => { setNewStoreName(t); if (createStoreError) setCreateStoreError(null); }}
-                            autoFocus
-                            returnKeyType="done"
-                            onSubmitEditing={handleCreateStore}
-                        />
+                        {/* Step indicators */}
+                        <View style={styles.stepIndicatorRow}>
+                            {[1, 2].map(n => (
+                                <View key={n} style={styles.stepIndicatorItem}>
+                                    <View style={[
+                                        styles.stepDot,
+                                        createStep >= n && styles.stepDotActive,
+                                        createStep > n  && styles.stepDotDone,
+                                    ]}>
+                                        {createStep > n
+                                            ? <Check size={10} color="#fff" />
+                                            : <Text style={[styles.stepDotNum, createStep === n && styles.stepDotNumActive]}>{n}</Text>
+                                        }
+                                    </View>
+                                    {n < 2 && <View style={[styles.stepLine, createStep > n && styles.stepLineDone]} />}
+                                </View>
+                            ))}
+                        </View>
 
-                        {createStoreError ? (
-                            <Text style={styles.createError}>{createStoreError}</Text>
-                        ) : null}
+                        {/* ── Step 1: Store Name ── */}
+                        {createStep === 1 && (
+                            <>
+                                <Text style={styles.inputLabel}>Store Name</Text>
+                                <TextInput
+                                    style={styles.storeNameInput}
+                                    placeholder="e.g. Main Branch, Orchard Outlet…"
+                                    placeholderTextColor="#94a3b8"
+                                    value={newStoreName}
+                                    onChangeText={(t) => { setNewStoreName(t); if (createStoreError) setCreateStoreError(null); }}
+                                    autoFocus
+                                    returnKeyType="next"
+                                    onSubmitEditing={() => {
+                                        if (!newStoreName.trim()) { setCreateStoreError('Please enter a store name.'); return; }
+                                        setCreateStoreError(null);
+                                        setCreateStep(2);
+                                    }}
+                                />
 
-                        <TouchableOpacity
-                            onPress={handleCreateStore}
-                            style={[styles.createBtn, (!newStoreName.trim() || creatingStore) && styles.createBtnDisabled]}
-                            disabled={!newStoreName.trim() || creatingStore}
-                        >
-                            {creatingStore
-                                ? <ActivityIndicator size="small" color="#fff" />
-                                : <Text style={styles.createBtnText}>Create Store</Text>}
-                        </TouchableOpacity>
-                    </View>
+                                {createStoreError ? (
+                                    <Text style={styles.createError}>{createStoreError}</Text>
+                                ) : null}
+
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        if (!newStoreName.trim()) { setCreateStoreError('Please enter a store name.'); return; }
+                                        setCreateStoreError(null);
+                                        setCreateStep(2);
+                                    }}
+                                    style={[styles.createBtn, !newStoreName.trim() && styles.createBtnDisabled]}
+                                    disabled={!newStoreName.trim()}
+                                >
+                                    <Text style={styles.createBtnText}>Next</Text>
+                                    <ArrowRight size={18} color="#fff" />
+                                </TouchableOpacity>
+                            </>
+                        )}
+
+                        {/* ── Step 2: Categories ── */}
+                        {createStep === 2 && (
+                            <>
+                                <ScrollView
+                                    showsVerticalScrollIndicator={false}
+                                    style={{ maxHeight: 280 }}
+                                    contentContainerStyle={styles.categoryGrid}
+                                >
+                                    {STORE_CATEGORIES.map(({ key, emoji }) => {
+                                        const isSelected = selectedCategories.includes(key);
+                                        return (
+                                            <TouchableOpacity
+                                                key={key}
+                                                activeOpacity={0.75}
+                                                onPress={() => toggleCategory(key)}
+                                                style={[
+                                                    styles.categoryPill,
+                                                    isSelected && styles.categoryPillSelected,
+                                                ]}
+                                            >
+                                                {isSelected && (
+                                                    <View style={styles.categoryCheck}>
+                                                        <Check size={11} color="#ffffff" />
+                                                    </View>
+                                                )}
+                                                <Text style={styles.categoryEmoji}>{emoji}</Text>
+                                                <Text style={[
+                                                    styles.categoryText,
+                                                    isSelected && styles.categoryTextSelected,
+                                                ]}>
+                                                    {key}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </ScrollView>
+
+                                {selectedCategories.length === 0 && (
+                                    <Text style={styles.categoryHint}>
+                                        Select at least one category (optional — you can change this later)
+                                    </Text>
+                                )}
+
+                                <View style={styles.createFooterRow}>
+                                    <TouchableOpacity
+                                        onPress={() => { setCreateStep(1); setCreateStoreError(null); }}
+                                        style={styles.backStepBtn}
+                                    >
+                                        <ArrowLeft size={16} color="#64748b" />
+                                        <Text style={styles.backStepBtnText}>Back</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={handleCreateStore}
+                                        style={[styles.createBtn, styles.createBtnFlex, creatingStore && styles.createBtnDisabled]}
+                                        disabled={creatingStore}
+                                    >
+                                        {creatingStore
+                                            ? <ActivityIndicator size="small" color="#fff" />
+                                            : <Text style={styles.createBtnText}>Create Store</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
+                    </TouchableOpacity>
                 </TouchableOpacity>
             </Modal>
         </ScreenWrapper>
@@ -840,6 +1002,13 @@ const styles = StyleSheet.create({
     storeInfo: { flex: 1 },
     storeName: { fontSize: 15, fontWeight: '800', color: '#0f172a', marginBottom: 3 },
     storeMeta: { fontSize: 12, color: '#94a3b8', fontWeight: '500' },
+    storeCategoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
+    storeCategoryChip: {
+        backgroundColor: '#ecfdf5', paddingHorizontal: 7, paddingVertical: 2,
+        borderRadius: 20, borderWidth: 1, borderColor: '#bbf7d0',
+    },
+    storeCategoryText: { fontSize: 10, fontWeight: '700', color: '#059669' },
+    storeCategoryMore: { fontSize: 10, fontWeight: '700', color: '#94a3b8', alignSelf: 'center' },
 
     // Program list
     programList: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e2e8f0', overflow: 'hidden', marginBottom: 12 },
@@ -878,6 +1047,7 @@ const styles = StyleSheet.create({
     createSheet: {
         backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
         paddingTop: 12, paddingHorizontal: 20,
+        maxHeight: '90%',
         // paddingBottom set dynamically via insets
     },
     pickerHandle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
@@ -902,11 +1072,58 @@ const styles = StyleSheet.create({
     },
     createError: { fontSize: 12, color: '#ef4444', fontWeight: '600', marginBottom: 12 },
     createBtn: {
-        backgroundColor: '#10b981', borderRadius: 14, paddingVertical: 16,
-        alignItems: 'center', marginTop: 8,
+        backgroundColor: '#10b981', borderRadius: 14, paddingVertical: 15,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 8, marginTop: 12,
     },
+    createBtnFlex: { flex: 1, marginTop: 0 },
     createBtnDisabled: { opacity: 0.5 },
     createBtnText: { fontSize: 15, fontWeight: '900', color: '#fff' },
+
+    // Step indicator
+    stepIndicatorRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    stepIndicatorItem: { flexDirection: 'row', alignItems: 'center' },
+    stepDot: {
+        width: 24, height: 24, borderRadius: 12,
+        borderWidth: 2, borderColor: '#e2e8f0', backgroundColor: '#fff',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    stepDotActive: { borderColor: '#10b981', backgroundColor: '#f0fdf4' },
+    stepDotDone: { borderColor: '#10b981', backgroundColor: '#10b981' },
+    stepDotNum: { fontSize: 11, fontWeight: '700', color: '#94a3b8' },
+    stepDotNumActive: { color: '#10b981' },
+    stepLine: { width: 32, height: 2, backgroundColor: '#e2e8f0', marginHorizontal: 4 },
+    stepLineDone: { backgroundColor: '#10b981' },
+
+    // Category pills
+    categoryGrid: {
+        flexDirection: 'row', flexWrap: 'wrap',
+        gap: 10, paddingVertical: 4,
+    },
+    categoryPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 10,
+        borderRadius: 100, borderWidth: 1.5, borderColor: '#e2e8f0',
+    },
+    categoryPillSelected: { backgroundColor: '#ecfdf5', borderColor: '#10b981' },
+    categoryCheck: {
+        width: 16, height: 16, borderRadius: 8,
+        backgroundColor: '#10b981',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    categoryEmoji: { fontSize: 15 },
+    categoryText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
+    categoryTextSelected: { color: '#059669', fontWeight: '800' },
+    categoryHint: { fontSize: 11, color: '#94a3b8', marginTop: 8, marginBottom: 4 },
+
+    // Create footer with back + submit
+    createFooterRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+    backStepBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        paddingVertical: 15, paddingHorizontal: 14,
+        borderRadius: 14, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc',
+    },
+    backStepBtnText: { fontSize: 14, fontWeight: '700', color: '#64748b' },
 });
 
 export default MerchantPrograms;

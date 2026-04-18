@@ -5,7 +5,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 
 export default function Index() {
     const router = useRouter();
-    const { isAuthenticated, role, login, onboardingStatus } = useAuth() as any;
+    const { isAuthenticated, role, login, onboardingStatus, user } = useAuth() as any;
 
     const handleLogin = async (selectedRole: string) => {
         try {
@@ -28,7 +28,12 @@ export default function Index() {
     React.useEffect(() => {
         if (isAuthenticated && role) {
             if (role === 'customer') {
-                router.replace('/(customer)/home');
+                const isNew = typeof user === 'object' && user?.isNew;
+                if (isNew) {
+                    router.replace('/(customer)/preferences');
+                } else {
+                    router.replace('/(customer)/home');
+                }
             } else if (role === 'merchant') {
                 // New merchants with pending onboarding go to onboarding wizard
                 if (onboardingStatus === 'pending') {
@@ -38,7 +43,7 @@ export default function Index() {
                 }
             }
         }
-    }, [isAuthenticated, role, onboardingStatus]);
+    }, [isAuthenticated, role, onboardingStatus, user]);
 
     const LoginScreenAny = LoginScreen as any;
     return <LoginScreenAny onLogin={handleLogin} />;

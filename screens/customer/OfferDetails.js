@@ -1,11 +1,7 @@
-import {
-  ArrowLeft,
-  Minus,
-  Plus,
-  ShoppingBag
-} from 'lucide-react-native';
+import { ArrowLeft, Gift, Tag, Zap } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -17,59 +13,33 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
-
-
-const DEFAULT_MENU = [
-  { id: 'd1', title: 'Signature Item A', price: 12.00, image: 'https://images.unsplash.com/photo-1505826759037-406b40feb4cd?w=200' },
-  { id: 'd2', title: 'Signature Item B', price: 15.00, image: 'https://images.unsplash.com/photo-1556740758-90de374c12ad?w=200' }
-];
-
-const OfferDetails = ({
-  offer,
-  storeMenus = {},
-  onBack,
-  onCheckout,
-}) => {
+const OfferDetails = ({ offer, onBack, onCheckout }) => {
   const insets = useSafeAreaInsets();
+  const [redeemed, setRedeemed] = useState(false);
 
-  const [cart, setCart] = useState({
-    [offer.id]: 1
-  });
+  if (!offer) return null;
 
-  const menu = storeMenus[offer.desc] || DEFAULT_MENU;
+  const hasImage  = !!offer.image;
+  const hasPoints = !!offer.discount; // e.g. "200 pts"
+  const hasPrice  = offer.price != null && offer.price > 0;
 
-  const updateQuantity = (id, delta) => {
-    setCart(prev => {
-      const current = prev[id] || 0;
-      const next = Math.max(0, current + delta);
-      return { ...prev, [id]: next };
-    });
-  };
-
-  const cartTotal = (offer.price || 0) * (cart[offer.id] || 0) +
-    menu.reduce((acc, item) => acc + (item.price * (cart[item.id] || 0)), 0);
-
-  const totalItemsCount = Object.values(cart).reduce((a, b) => a + b, 0);
-
-  const displayTotal = `$${cartTotal.toFixed(2)}`;
-
-  const isBundle = offer.type === 'bundle';
-
-  const handleCheckout = () => {
-    if (totalItemsCount > 0) {
-      const items = [];
-      if (cart[offer.id] > 0) {
-        items.push({ id: offer.id, title: offer.title, quantity: cart[offer.id], price: offer.price || 0 });
-      }
-      menu.forEach(item => {
-        if (cart[item.id] > 0) {
-          items.push({ id: item.id, title: item.title, quantity: cart[item.id], price: item.price });
-        }
-      });
-      onCheckout(items, cartTotal, offer.desc);
-    }
+  const handleRedeem = () => {
+    Alert.alert(
+      'Redeem Reward',
+      `Use ${offer.discount || 'this reward'} to redeem "${offer.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Redeem',
+          onPress: () => {
+            setRedeemed(true);
+            if (onCheckout) onCheckout(offer.price || 0);
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -78,109 +48,103 @@ const OfferDetails = ({
       useSafeAreaBottom={false}
       paddingHorizontal={0}
       backgroundColor="#000000"
-      style={styles.container}>
+      style={styles.container}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
         style={{ flex: 1 }}
         bounces={false}
       >
-        {/* Compact Hero */}
+        {/* Hero */}
         <View style={styles.hero}>
-          <Image source={{ uri: offer.image }} style={styles.heroImage} />
+          {hasImage ? (
+            <Image source={{ uri: offer.image }} style={styles.heroImage} />
+          ) : (
+            <View style={[styles.heroImage, styles.heroPlaceholder]}>
+              <Gift size={64} color="rgba(255,255,255,0.2)" />
+            </View>
+          )}
           <View style={styles.heroOverlay} />
-
           <View style={styles.heroContent}>
-            {isBundle && (
-              <View style={styles.bundleTag}>
-                <Text style={styles.bundleTagText}>BUNDLE SAVE</Text>
+            {hasPoints && (
+              <View style={styles.pointsBadge}>
+                <Zap size={12} color="#fbbf24" fill="#fbbf24" />
+                <Text style={styles.pointsBadgeText}>{offer.discount}</Text>
               </View>
             )}
             <Text style={styles.heroTitle}>{offer.title}</Text>
           </View>
         </View>
 
-        {/* Elegant Content Sheet */}
-        <View style={styles.sheetContainer}>
-          <View style={styles.scrollContent}>
-            <View style={styles.storeHeader}>
-              <Text style={styles.storeName}>{offer.desc}</Text>
-              <View style={styles.ratingBadge}>
-                <Text style={styles.ratingText}>★ 4.8</Text>
-              </View>
-            </View>
+        {/* Content sheet */}
+        <View style={styles.sheet}>
+          <View style={styles.sheetContent}>
 
-            <Text style={styles.sectionHeader}>Featured Offer</Text>
-            <View style={styles.menuItem}>
-              <Image source={{ uri: offer.image }} style={styles.menuItemImage} />
-              <View style={styles.menuItemInfo}>
-                <Text style={styles.menuItemTitle}>{offer.title}</Text>
-                <Text style={styles.menuItemPrice}>${(offer.price || 0).toFixed(2)}</Text>
-              </View>
-              <View style={styles.menuItemAction}>
-                {cart[offer.id] > 0 ? (
-                  <View style={styles.smallQtyControl}>
-                    <TouchableOpacity onPress={() => updateQuantity(offer.id, -1)} style={styles.smallQtyBtn}><Minus size={14} color="#0f172a" /></TouchableOpacity>
-                    <Text style={styles.smallQtyValue}>{cart[offer.id]}</Text>
-                    <TouchableOpacity onPress={() => updateQuantity(offer.id, 1)} style={styles.smallQtyBtn}><Plus size={14} color="#0f172a" /></TouchableOpacity>
+            {/* Description */}
+            {!!offer.desc && (
+              <Text style={styles.description}>{offer.desc}</Text>
+            )}
+
+            {/* Cost row */}
+            <View style={styles.costRow}>
+              {hasPoints && (
+                <View style={styles.costCard}>
+                  <Zap size={18} color="#4f46e5" fill="#4f46e5" />
+                  <View>
+                    <Text style={styles.costLabel}>Points Cost</Text>
+                    <Text style={styles.costValue}>{offer.discount}</Text>
                   </View>
-                ) : (
-                  <TouchableOpacity onPress={() => updateQuantity(offer.id, 1)} style={styles.addButton}>
-                    <Plus size={16} color="#ffffff" />
-                  </TouchableOpacity>
-                )}
-              </View>
+                </View>
+              )}
+              {hasPrice && (
+                <View style={[styles.costCard, styles.costCardAlt]}>
+                  <Tag size={18} color="#10b981" />
+                  <View>
+                    <Text style={styles.costLabel}>Price</Text>
+                    <Text style={[styles.costValue, { color: '#10b981' }]}>
+                      ${Number(offer.price).toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
-            <View style={styles.divider} />
-
-            <Text style={styles.sectionHeader}>Store Menu</Text>
-            {menu.map((item) => (
-              <View key={item.id} style={styles.menuItem}>
-                <Image source={{ uri: item.image }} style={styles.menuItemImage} />
-                <View style={styles.menuItemInfo}>
-                  <Text style={styles.menuItemTitle}>{item.title}</Text>
-                  <Text style={styles.menuItemPrice}>${item.price.toFixed(2)}</Text>
-                </View>
-                <View style={styles.menuItemAction}>
-                  {(cart[item.id] || 0) > 0 ? (
-                    <View style={styles.smallQtyControl}>
-                      <TouchableOpacity onPress={() => updateQuantity(item.id, -1)} style={styles.smallQtyBtn}><Minus size={14} color="#0f172a" /></TouchableOpacity>
-                      <Text style={styles.smallQtyValue}>{cart[item.id]}</Text>
-                      <TouchableOpacity onPress={() => updateQuantity(item.id, 1)} style={styles.smallQtyBtn}><Plus size={14} color="#0f172a" /></TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity onPress={() => updateQuantity(item.id, 1)} style={styles.addButton}>
-                      <Plus size={16} color="#ffffff" />
-                    </TouchableOpacity>
-                  )}
-                </View>
+            {/* Expires */}
+            {!!offer.expires && (
+              <View style={styles.expiryRow}>
+                <Text style={styles.expiryLabel}>Valid until</Text>
+                <Text style={styles.expiryValue}>{offer.expires}</Text>
               </View>
-            ))}
+            )}
+
+            {/* Redeemed confirmation */}
+            {redeemed && (
+              <View style={styles.redeemedBanner}>
+                <Text style={styles.redeemedText}>✓ Reward redeemed! Show this to the merchant.</Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
 
-      <TouchableOpacity onPress={onBack} style={[styles.backButton, { top: insets.top + 16 }]}>
+      {/* Back button */}
+      <TouchableOpacity
+        onPress={onBack}
+        style={[styles.backButton, { top: insets.top + 16 }]}
+      >
         <ArrowLeft size={20} color="#ffffff" />
       </TouchableOpacity>
 
-      {/* Compact & Elegant Footer */}
-      <View style={styles.footer}>
+      {/* Footer */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
         <TouchableOpacity
-          style={[styles.checkoutBtn, totalItemsCount === 0 && { opacity: 0.5 }]}
-          onPress={handleCheckout}
-          disabled={totalItemsCount === 0}
+          style={[styles.redeemBtn, redeemed && styles.redeemBtnDone]}
+          onPress={redeemed ? onBack : handleRedeem}
         >
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>{totalItemsCount}</Text>
-          </View>
-          <Text style={styles.checkoutLabel}>
-            Checkout - {displayTotal}
+          <Text style={styles.redeemBtnText}>
+            {redeemed ? 'Done' : hasPoints ? `Redeem for ${offer.discount}` : 'Redeem Reward'}
           </Text>
-          <View style={styles.checkoutIcon}>
-            <ShoppingBag size={16} color="#ffffff" />
-          </View>
         </TouchableOpacity>
       </View>
     </ScreenWrapper>
@@ -190,72 +154,71 @@ const OfferDetails = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000', // Dark background for contrast behind sheet
+    backgroundColor: '#000000',
   },
   hero: {
-    height: height * 0.45,
+    height: height * 0.42,
     position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   heroImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.8,
+    position: 'absolute',
+  },
+  heroPlaceholder: {
+    backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%)', // Simulating gradient with solid for RN logic if needed, but simple overlay works
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50, // Safe area
-    left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backdropFilter: 'blur(10px)', // Web property, handled gracefully in RN or ignored
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   heroContent: {
     position: 'absolute',
-    bottom: 40, // Space for sheet overlap
+    bottom: 32,
     left: 24,
     right: 24,
+  },
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: 10,
+  },
+  pointsBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#fbbf24',
+    letterSpacing: 0.5,
   },
   heroTitle: {
     fontSize: 28,
     fontWeight: '900',
     color: '#ffffff',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.3)',
+    lineHeight: 34,
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  heroPrice: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4ade80', // Bright green for contrast
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  bundleTag: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  bundleTagText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  sheetContainer: {
+  sheet: {
     flex: 1,
     marginTop: -24,
     backgroundColor: '#ffffff',
@@ -263,157 +226,74 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     overflow: 'hidden',
   },
-  content: {
-    flex: 1,
+  sheetContent: {
+    padding: 28,
+    gap: 20,
   },
-  scrollContent: {
-    padding: 24,
-    paddingBottom: 100,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#64748b',
+  description: {
+    fontSize: 15,
+    color: '#475569',
+    lineHeight: 24,
     fontWeight: '500',
   },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 16,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  costRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  storeHeader: {
+  costCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#eef2ff',
+    borderRadius: 16,
+    padding: 16,
+  },
+  costCardAlt: {
+    backgroundColor: '#f0fdf4',
+  },
+  costLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  costValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#4f46e5',
+  },
+  expiryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  storeName: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#0f172a',
-  },
-  ratingBadge: {
-    backgroundColor: '#fffbeb',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  ratingText: {
-    color: '#d97706',
-    fontWeight: '900',
-    fontSize: 12,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 16,
-  },
-  menuItemImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: '#f1f5f9',
-  },
-  menuItemInfo: {
-    flex: 1,
-  },
-  menuItemTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  menuItemPrice: {
-    fontSize: 14,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  menuItemAction: {
-    minWidth: 80,
-    alignItems: 'flex-end',
-  },
-  addButton: {
-    backgroundColor: '#0f172a',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  smallQtyControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 20,
-    padding: 4,
-    gap: 12,
-  },
-  smallQtyBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  smallQtyValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#0f172a',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginVertical: 24,
-  },
-  cartBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#4ade80',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartBadgeText: {
-    color: '#0f172a',
-    fontWeight: '900',
-    fontSize: 14,
-  },
-  bundleInfoBox: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: '#eef2ff',
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'flex-start',
-  },
-  bundleInfoText: {
-    flex: 1,
+  expiryLabel: {
     fontSize: 13,
-    color: '#4338ca',
-    lineHeight: 18,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  expiryValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  redeemedBanner: {
+    backgroundColor: '#dcfce7',
+    borderRadius: 12,
+    padding: 16,
+  },
+  redeemedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#16a34a',
+    textAlign: 'center',
   },
   footer: {
     position: 'absolute',
@@ -422,42 +302,31 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#ffffff',
     paddingHorizontal: 24,
-    paddingBottom: 32, // Safe area
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 16,
   },
-  checkoutBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#0f172a',
+  redeemBtn: {
+    backgroundColor: '#4f46e5',
+    borderRadius: 20,
     height: 56,
-    borderRadius: 28,
-    paddingHorizontal: 24,
-    shadowColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  checkoutLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
+  redeemBtnDone: {
+    backgroundColor: '#10b981',
+    shadowColor: '#10b981',
   },
-  checkoutIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  redeemBtnText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.3,
   },
 });
 

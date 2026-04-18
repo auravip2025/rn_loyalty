@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 
-const BUSINESS_TYPES = ['Restaurant', 'Cafe', 'Retail', 'Salon & Beauty', 'Gym & Fitness', 'Entertainment', 'Other'];
+const BUSINESS_TYPES = ['Food', 'Travel', 'Cosmetics', 'Retail', 'Fitness', 'Entertainment', 'Other'];
 
 const STEPS = [
     { id: 1, label: 'Business Details' },
@@ -94,7 +94,7 @@ const MerchantOnboarding = ({ onComplete }) => {
 
     // Step 1 data
     const [businessName, setBusinessName] = useState('');
-    const [businessType, setBusinessType] = useState('');
+    const [businessTypes, setBusinessTypes] = useState([]);
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
     const [taxId, setTaxId] = useState('');
@@ -109,7 +109,7 @@ const MerchantOnboarding = ({ onComplete }) => {
 
     const validateStep1 = () => {
         if (!businessName.trim()) { Alert.alert('Required', 'Please enter your business name.'); return false; }
-        if (!businessType) { Alert.alert('Required', 'Please select a business type.'); return false; }
+        if (businessTypes.length === 0) { Alert.alert('Required', 'Please select at least one business category.'); return false; }
         if (!address.trim()) { Alert.alert('Required', 'Please enter your business address.'); return false; }
         if (!phone.trim()) { Alert.alert('Required', 'Please enter your phone number.'); return false; }
         if (!taxId.trim()) { Alert.alert('Required', 'Please enter your Tax ID.'); return false; }
@@ -132,7 +132,7 @@ const MerchantOnboarding = ({ onComplete }) => {
         try {
             await saveMerchantProfile({
                 businessName,
-                businessType,
+                businessType: businessTypes,
                 address,
                 phone,
                 taxId,
@@ -222,19 +222,35 @@ const MerchantOnboarding = ({ onComplete }) => {
 
                         <Field label="Business Name" icon={Building2} value={businessName} onChangeText={setBusinessName} placeholder="The Coffee House" />
 
-                        {/* Business Type picker */}
+                        {/* Business Categories picker */}
                         <View style={styles.fieldContainer}>
-                            <Text style={styles.fieldLabel}>Business Type</Text>
-                            <TouchableOpacity
-                                style={styles.fieldRow}
-                                onPress={() => setShowTypePicker(true)}
-                            >
-                                <View style={styles.fieldIcon}><CreditCard size={16} color="#94a3b8" /></View>
-                                <Text style={[styles.fieldInput, !businessType && { color: '#94a3b8' }]}>
-                                    {businessType || 'Select business type'}
-                                </Text>
-                                <ChevronDown size={16} color="#94a3b8" style={{ marginRight: 12 }} />
-                            </TouchableOpacity>
+                            <Text style={styles.fieldLabel}>Business Categories</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                                {BUSINESS_TYPES.map(cat => {
+                                    const isSelected = businessTypes.includes(cat);
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat}
+                                            style={[
+                                                { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0', marginRight: 8 },
+                                                isSelected && { backgroundColor: '#4f46e5', borderColor: '#4f46e5' }
+                                            ]}
+                                            onPress={() => {
+                                                setBusinessTypes(prev => 
+                                                    prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                                                );
+                                            }}
+                                        >
+                                            <Text style={[
+                                                { fontSize: 13, fontWeight: '600', color: '#64748b' },
+                                                isSelected && { color: '#ffffff' }
+                                            ]}>
+                                                {cat}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
                         </View>
 
                         <Field label="Business Address" icon={MapPin} value={address} onChangeText={setAddress} placeholder="123 Main St, City, Country" multiline />
@@ -280,7 +296,7 @@ const MerchantOnboarding = ({ onComplete }) => {
                         <View style={styles.summaryCard}>
                             <Text style={styles.summarySection}>Business Information</Text>
                             <SummaryRow label="Business Name" value={businessName} />
-                            <SummaryRow label="Business Type" value={businessType} />
+                            <SummaryRow label="Categories" value={businessTypes.join(', ')} />
                             <SummaryRow label="Address" value={address} />
                             <SummaryRow label="Phone" value={phone} />
                             <SummaryRow label="Tax ID" value={taxId} />
@@ -322,27 +338,7 @@ const MerchantOnboarding = ({ onComplete }) => {
                 )}
             </View>
 
-            {/* Business Type Modal Picker */}
-            <Modal transparent visible={showTypePicker} animationType="slide" onRequestClose={() => setShowTypePicker(false)}>
-                <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowTypePicker(false)} activeOpacity={1}>
-                    <View style={styles.pickerSheet}>
-                        <View style={styles.pickerHandle} />
-                        <Text style={styles.pickerTitle}>Select Business Type</Text>
-                        {BUSINESS_TYPES.map(type => (
-                            <TouchableOpacity
-                                key={type}
-                                style={[styles.pickerRow, businessType === type && styles.pickerRowActive]}
-                                onPress={() => { setBusinessType(type); setShowTypePicker(false); }}
-                            >
-                                <Text style={[styles.pickerRowText, businessType === type && styles.pickerRowTextActive]}>
-                                    {type}
-                                </Text>
-                                {businessType === type && <CheckCircle2 size={18} color="#10b981" />}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+
         </ScreenWrapper>
     );
 };

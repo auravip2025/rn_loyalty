@@ -2,7 +2,7 @@
 import { ApolloClient, ApolloLink, InMemoryCache, Observable, createHttpLink, fromPromise, gql } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
-import { useMutation as useApolloMutation, useQuery as useApolloQuery } from '@apollo/client/react';
+import { useLazyQuery as useApolloLazyQuery, useMutation as useApolloMutation, useQuery as useApolloQuery } from '@apollo/client/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // GraphQL server URI from .env
@@ -143,6 +143,11 @@ export const useQuery = (query: any, options: any = {}) => {
   return useApolloQuery(gqlQuery, options);
 };
 
+export const useLazyQuery = (query: any, options: any = {}) => {
+  const gqlQuery = typeof query === 'string' ? gql`${query}` : query;
+  return useApolloLazyQuery(gqlQuery, options);
+};
+
 export const useMutation = (mutation: any, options: any = {}) => {
   const gqlMutation = typeof mutation === 'string' ? gql`${mutation}` : mutation;
   return useApolloMutation(gqlMutation, options);
@@ -184,6 +189,19 @@ export const GET_OFFERS = `
   query GetOffers {
     offers {
       id title desc image price discount expires
+    }
+  }
+`;
+
+export const GET_FOR_YOU_OFFERS = `
+  query GetForYouOffers {
+    forYouOffers {
+      id
+      title
+      desc
+      image
+      price
+      discount
     }
   }
 `;

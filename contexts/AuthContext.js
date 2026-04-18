@@ -65,10 +65,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   // OTP-based login (no password required)
-  const loginWithOtp = async (email, selectedRole, isNewUser = false) => {
+  const loginWithOtp = async (email, selectedRole, isNewUser = false, userId = Date.now()) => {
     try {
       setLoading(true);
-      const sessionUser = { id: Date.now(), email, isNew: isNewUser };
+      const sessionUser = { id: userId, email, isNew: isNewUser };
       await AsyncStorage.setItem('@dandan_user', JSON.stringify(sessionUser));
       await AsyncStorage.setItem('@dandan_role', selectedRole);
 
