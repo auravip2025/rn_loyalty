@@ -12,8 +12,10 @@ import {
   Scissors,
   Shirt,
   ShoppingBag,
+  Star,
   Trophy,
   Utensils,
+  Zap,
   LucideIcon,
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
@@ -35,7 +37,8 @@ import Animated, {
   withDelay,
   withRepeat,
   withSequence,
-  withTiming
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
@@ -48,6 +51,7 @@ interface Offer {
   expires?: string | null;
   price?: number;
   storeName?: string | null;
+  stock?: number | null;    // null = unlimited; integer = finite stock
 }
 
 interface Store {
@@ -67,80 +71,250 @@ interface Category {
   shops: { name: string }[];
 }
 
+interface TopOffer {
+  id: string | number;
+  title: string;
+  discount?: string | null;
+  price?: number | null;
+  image?: string | null;
+}
+
+interface Merchant {
+  id: string | number;
+  name: string;
+  category?: string | null;
+  categoryEmoji?: string | null;
+  image?: string | null;
+  address?: string | null;
+  rating?: number | null;
+  open?: boolean;
+  topOffer?: TopOffer | null;
+}
+
+// ── Category → card colour ─────────────────────────────────────────────────
+const CATEGORY_COLORS: Record<string, string> = {
+  cafe:        '#f59e0b',
+  coffee:      '#f59e0b',
+  food:        '#10b981',
+  restaurant:  '#10b981',
+  fashion:     '#8b5cf6',
+  clothing:    '#8b5cf6',
+  electronics: '#3b82f6',
+  tech:        '#3b82f6',
+  beauty:      '#ec4899',
+  fitness:     '#ef4444',
+  gym:         '#ef4444',
+  grocery:     '#22c55e',
+  health:      '#06b6d4',
+  eco:         '#16a34a',
+};
+
+const merchantCardColor = (category?: string | null): string => {
+  if (!category) return '#1e293b';
+  const key = category.toLowerCase();
+  const match = Object.entries(CATEGORY_COLORS).find(([k]) => key.includes(k));
+  return match ? match[1] : '#1e293b';
+};
+
+// ── MerchantCard ────────────────────────────────────────────────────────────
+interface MerchantCardProps {
+  merchant: Merchant;
+  index: number;
+  onPress: () => void;
+}
+
+// Card width used for snap calculation — exported so the ScrollView can use it
+const MERCHANT_CARD_W = 300;
+
+const MerchantCard: React.FC<MerchantCardProps> = ({ merchant, index, onPress }) => {
+  const translateY = useSharedValue(24);
+  const opacity    = useSharedValue(0);
+  const isFocused  = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) {
+      translateY.value = 24;
+      opacity.value    = 0;
+      const delay = index * 100;
+      opacity.value    = withDelay(delay, withTiming(1,  { duration: 400 }));
+      translateY.value = withDelay(delay, withSpring(0,  { damping: 16, stiffness: 110 }));
+    }
+  }, [isFocused, index]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity:   opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const accentColor = merchantCardColor(merchant.category);
+  const hasImage    = !!merchant.image;
+  const shortAddr   = merchant.address
+    ? merchant.address.split(',').slice(0, 2).join(',').trim()
+    : null;
+  const offerLabel = merchant.topOffer?.discount
+    ?? (merchant.topOffer?.price != null ? `$${Number(merchant.topOffer.price).toFixed(2)}` : null);
+
+  return (
+    <Animated.View style={[styles.merchantCard, animStyle]}>
+      <TouchableOpacity onPress={onPress} style={{ flex: 1 }} activeOpacity={0.9}>
+
+        {/* ── Background: photo or coloured fallback ── */}
+        {hasImage ? (
+          <Image
+            source={{ uri: merchant.image! }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, styles.merchantFallbackBg, { backgroundColor: accentColor }]}>
+            {/* Subtle decorative circle — mirrors the membership card pattern */}
+            <View style={styles.merchantBgCircle} />
+            <Text style={styles.merchantBgEmoji}>{merchant.categoryEmoji || '🏪'}</Text>
+          </View>
+        )}
+
+        {/* ── Full-card scrim (photo needs it, fallback gets subtle tint) ── */}
+        <View style={styles.merchantScrim} />
+
+        {/* ── TOP ROW: category badge left · open pill right ── */}
+        <View style={styles.merchantTopRow}>
+          <View style={styles.merchantCategoryBadge}>
+            <Text style={styles.merchantCategoryEmoji}>{merchant.categoryEmoji || '🏪'}</Text>
+            <Text style={styles.merchantCategoryLabel}>{merchant.category || 'Store'}</Text>
+          </View>
+          <View style={[styles.merchantOpenPill,
+            { backgroundColor: merchant.open ? 'rgba(16,185,129,0.85)' : 'rgba(100,116,139,0.85)' }]}>
+            <View style={styles.merchantOpenDot} />
+            <Text style={styles.merchantOpenText}>{merchant.open ? 'Open' : 'Closed'}</Text>
+          </View>
+        </View>
+
+        {/* ── BOTTOM STRIP: mirrors membership card footer ── */}
+        <View style={styles.merchantFooter}>
+          {/* Name + optional offer badge on same row */}
+          <View style={styles.merchantFooterTop}>
+            <Text style={styles.merchantName} numberOfLines={1}>{merchant.name}</Text>
+            {offerLabel ? (
+              <View style={styles.merchantOfferChip}>
+                <Text style={styles.merchantOfferText}>{offerLabel}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Address + rating — matches membership card's bottom meta row */}
+          <View style={styles.merchantMetaRow}>
+            {merchant.rating != null && (
+              <View style={styles.merchantRatingRow}>
+                <Star size={11} color="#fbbf24" fill="#fbbf24" />
+                <Text style={styles.merchantRating}>{Number(merchant.rating).toFixed(1)}</Text>
+              </View>
+            )}
+            {shortAddr ? (
+              <View style={styles.merchantAddrRow}>
+                <MapPin size={10} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.merchantAddr} numberOfLines={1}>{shortAddr}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 interface OfferCardItemProps {
   offer: Offer;
   index: number;
   onPress: () => void;
 }
 
-const OfferCardItem: React.FC<OfferCardItemProps> = ({ offer, index, onPress }) => {
-  const translateX = useSharedValue(200);
-  const rotate = useSharedValue(0);
-  const opacity = useSharedValue(0);
+// Stock urgency helpers
+const isHot       = (stock?: number | null) => stock !== null && stock !== undefined && stock <= 5;
+const isLow       = (stock?: number | null) => stock !== null && stock !== undefined && stock > 5 && stock <= 15;
+const stockLabel  = (stock?: number | null): string | null => {
+  if (isHot(stock))  return `Only ${stock} left!`;
+  if (isLow(stock))  return `${stock} remaining`;
+  return null;
+};
 
-  const isFocused = useIsFocused();
+const OfferCardItem: React.FC<OfferCardItemProps> = ({ offer, index, onPress }) => {
+  const translateX = useSharedValue(60);
+  const opacity    = useSharedValue(0);
+  const isFocused  = useIsFocused();
 
   useEffect(() => {
     if (isFocused) {
-      // Reset values
-      translateX.value = 200;
-      rotate.value = 0;
-      opacity.value = 0;
-
-      const DELAY = index * 300;
-
-      // Fade in
-      opacity.value = withDelay(DELAY, withTiming(1, { duration: 600 }));
-
-      // Slide In
-      translateX.value = withDelay(DELAY, withTiming(0, { duration: 600, easing: Easing.out(Easing.quad) }));
-
-      // Rotation Wobble - Starts after slide-in
-      rotate.value = withDelay(DELAY + 600, withSequence(
-        withTiming(2, { duration: 400, easing: Easing.inOut(Easing.quad) }),  // Tilt right
-        withTiming(-2, { duration: 400, easing: Easing.inOut(Easing.quad) }), // Tilt left
-        withTiming(1, { duration: 400, easing: Easing.inOut(Easing.quad) }),   // Tilt right (smaller)
-        withTiming(-1, { duration: 400, easing: Easing.inOut(Easing.quad) }),  // Tilt left (smaller)
-        withTiming(0, { duration: 400, easing: Easing.inOut(Easing.quad) })     // Center
-      ));
+      translateX.value = 60;
+      opacity.value    = 0;
+      const delay = index * 120;
+      opacity.value    = withDelay(delay, withTiming(1, { duration: 400 }));
+      translateX.value = withDelay(delay, withSpring(0, { damping: 18, stiffness: 120 }));
     }
   }, [isFocused, index]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacity.value,
-      transform: [
-        { translateX: translateX.value },
-        { rotate: `${rotate.value}deg` }
-      ]
-    };
-  });
+  const animStyle = useAnimatedStyle(() => ({
+    opacity:   opacity.value,
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const hot   = isHot(offer.stock);
+  const low   = isLow(offer.stock);
+  const label = stockLabel(offer.stock);
 
   return (
-    <Animated.View style={animatedStyle}>
-      <TouchableOpacity onPress={onPress} style={styles.offerCard}>
-        {offer.image
-          ? <Image source={{ uri: offer.image }} style={styles.offerImage} />
-          : <View style={[styles.offerImage, styles.offerImagePlaceholder]} />
-        }
-        <View style={styles.offerOverlay} />
-        <View style={styles.offerContent}>
-          {/* Top: reward name */}
+    <Animated.View style={animStyle}>
+      <TouchableOpacity onPress={onPress} style={styles.offerCard} activeOpacity={0.88}>
+
+        {/* LEFT — square image */}
+        <View style={styles.offerImageWrap}>
+          {offer.image
+            ? <Image source={{ uri: offer.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            : <View style={[StyleSheet.absoluteFill, styles.offerImagePlaceholder]}>
+                <Zap size={28} color="rgba(255,255,255,0.3)" fill="rgba(255,255,255,0.3)" />
+              </View>
+          }
+          {/* Hot flame overlay on image */}
+          {hot && (
+            <View style={styles.offerHotBadge}>
+              <Text style={styles.offerHotBadgeText}>🔥</Text>
+            </View>
+          )}
+        </View>
+
+        {/* RIGHT — offer details */}
+        <View style={styles.offerBody}>
+
+          {/* Store name */}
+          {offer.storeName ? (
+            <Text style={styles.offerStoreName} numberOfLines={1}>{offer.storeName}</Text>
+          ) : null}
+
+          {/* Offer title */}
           <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
 
-          {/* Middle: points / discount badge */}
-          <View style={styles.offerMiddle}>
+          {/* Points + price row */}
+          <View style={styles.offerPriceRow}>
             {offer.discount ? (
-              <View style={styles.offerDiscountBadge}>
-                <Text style={styles.offerDiscount}>{offer.discount}</Text>
+              <View style={styles.offerPointsChip}>
+                <Zap size={10} color="#4f46e5" fill="#4f46e5" />
+                <Text style={styles.offerPointsText}>{offer.discount}</Text>
               </View>
+            ) : null}
+            {offer.price != null && offer.price > 0 ? (
+              <Text style={styles.offerPrice}>${Number(offer.price).toFixed(2)}</Text>
             ) : null}
           </View>
 
-          {/* Bottom: store name */}
-          {offer.storeName ? (
-            <Text style={styles.offerStoreName} numberOfLines={1}>🏪 {offer.storeName}</Text>
+          {/* Stock urgency */}
+          {label ? (
+            <View style={[styles.offerStockRow, { backgroundColor: hot ? '#fef2f2' : '#fffbeb' }]}>
+              <Text style={[styles.offerStockText, { color: hot ? '#ef4444' : '#d97706' }]}>
+                {hot ? '🔥 ' : '⚡ '}{label}
+              </Text>
+            </View>
           ) : null}
+
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -251,6 +425,7 @@ const CATEGORY_DATA: Category[] = [
 
 interface CustomerHomeProps {
   offers: Offer[];
+  merchants?: Merchant[];
   recentStores?: Store[];
   balance: number;
   onOpenWallet: () => void;
@@ -259,6 +434,7 @@ interface CustomerHomeProps {
 
 const CustomerHome: React.FC<CustomerHomeProps> = ({
   offers,
+  merchants = [],
   recentStores = [],
   balance,
   onOpenWallet,
@@ -269,23 +445,41 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
 
   const scrollViewRef = useRef<ScrollView>(null);
   const mainScrollViewRef = useRef<any>(null);
+  const merchantScrollRef = useRef<ScrollView>(null);
 
-  const scrollX = useRef(0);
+  const scrollX         = useRef(0);
+  const merchantScrollX = useRef(0);
 
+  // Offer scroll  (card 280 + gap 12 = 292)
+  const OFFER_STEP = 292;
   const scrollRight = () => {
-    const nextX = scrollX.current + 172; // Card width (160) + gap (12)
+    const nextX = scrollX.current + OFFER_STEP;
     scrollViewRef.current?.scrollTo({ x: nextX, animated: true });
     scrollX.current = nextX;
   };
-
   const scrollLeft = () => {
-    const nextX = Math.max(0, scrollX.current - 172);
+    const nextX = Math.max(0, scrollX.current - OFFER_STEP);
     scrollViewRef.current?.scrollTo({ x: nextX, animated: true });
     scrollX.current = nextX;
   };
-
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollX.current = event.nativeEvent.contentOffset.x;
+  };
+
+  // Merchant scroll — card 300 + gap 16 = 316 per step
+  const MERCHANT_STEP = MERCHANT_CARD_W + 16;
+  const merchantScrollRight = () => {
+    const nextX = merchantScrollX.current + MERCHANT_STEP;
+    merchantScrollRef.current?.scrollTo({ x: nextX, animated: true });
+    merchantScrollX.current = nextX;
+  };
+  const merchantScrollLeft = () => {
+    const nextX = Math.max(0, merchantScrollX.current - MERCHANT_STEP);
+    merchantScrollRef.current?.scrollTo({ x: nextX, animated: true });
+    merchantScrollX.current = nextX;
+  };
+  const handleMerchantScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    merchantScrollX.current = event.nativeEvent.contentOffset.x;
   };
 
   return (
@@ -380,18 +574,36 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
           })}
         </View>
 
-        {/* Offers Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>For You</Text>
-          <View style={styles.scrollButtons}>
-            <TouchableOpacity onPress={scrollLeft} style={styles.scrollButton}>
-              <ChevronLeft size={16} color="#4f46e5" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={scrollRight} style={styles.scrollButton}>
-              <ChevronRight size={16} color="#4f46e5" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* For You / Hot Offers */}
+        {(() => {
+          const anyHot = offers.some(o => isHot(o.stock));
+          const anyLow = !anyHot && offers.some(o => isLow(o.stock));
+          return (
+            <View style={styles.sectionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.sectionTitle}>For You</Text>
+                {anyHot && (
+                  <View style={styles.hotLabel}>
+                    <Text style={styles.hotLabelText}>🔥 Hot</Text>
+                  </View>
+                )}
+                {anyLow && (
+                  <View style={[styles.hotLabel, { backgroundColor: '#fffbeb', borderColor: '#fcd34d' }]}>
+                    <Text style={[styles.hotLabelText, { color: '#d97706' }]}>⚡ Low stock</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.scrollButtons}>
+                <TouchableOpacity onPress={scrollLeft} style={styles.scrollButton}>
+                  <ChevronLeft size={16} color="#4f46e5" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={scrollRight} style={styles.scrollButton}>
+                  <ChevronRight size={16} color="#4f46e5" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()}
 
         {offers && offers.length > 0 ? (
           <ScrollView
@@ -400,6 +612,9 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
             showsHorizontalScrollIndicator={false}
             onScroll={handleScroll}
             scrollEventThrottle={16}
+            decelerationRate="fast"
+            snapToInterval={OFFER_STEP}
+            snapToAlignment="start"
             style={styles.offersScroll}
             contentContainerStyle={styles.offersContainer}>
             {offers.map((offer, i) => (
@@ -422,6 +637,62 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
               No rewards available right now. Check back soon!
             </Text>
           </View>
+        )}
+
+        {/* Top Merchants */}
+        {merchants.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Top Merchants</Text>
+              <View style={styles.scrollButtons}>
+                <TouchableOpacity onPress={merchantScrollLeft} style={styles.scrollButton}>
+                  <ChevronLeft size={16} color="#4f46e5" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={merchantScrollRight} style={styles.scrollButton}>
+                  <ChevronRight size={16} color="#4f46e5" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <ScrollView
+              ref={merchantScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleMerchantScroll}
+              scrollEventThrottle={16}
+              decelerationRate="fast"
+              snapToInterval={MERCHANT_STEP}
+              snapToAlignment="start"
+              style={styles.merchantsScroll}
+              contentContainerStyle={styles.merchantsContainer}
+            >
+              {merchants.map((merchant, i) => (
+                <MerchantCard
+                  key={merchant.id ?? i}
+                  merchant={merchant}
+                  index={i}
+                  onPress={() => {
+                    if (merchant.topOffer) {
+                      router.push({
+                        pathname: '/(customer)/offer-details' as any,
+                        params: {
+                          offer: JSON.stringify({
+                            id:        merchant.topOffer.id,
+                            title:     merchant.topOffer.title,
+                            desc:      `From ${merchant.name}`,
+                            image:     merchant.topOffer.image || merchant.image,
+                            discount:  merchant.topOffer.discount,
+                            price:     merchant.topOffer.price,
+                            storeName: merchant.name,
+                          }),
+                        },
+                      });
+                    }
+                  }}
+                />
+              ))}
+            </ScrollView>
+          </>
         )}
 
         {/* Categories Section */}
@@ -628,6 +899,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     borderRadius: 20,
   },
+  // ── "For You" section label badges ──────────────────────────────────────
+  hotLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  hotLabelText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ef4444',
+  },
+
+  // ── Offer cards (image-left + text-right layout) ──────────────────────
   offersScroll: {
     marginBottom: 32,
     marginHorizontal: -24,
@@ -649,62 +938,101 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   offerCard: {
-    width: 160,
-    height: 144,
-    borderRadius: 16,
+    width: 280,
+    height: 112,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
     overflow: 'hidden',
-    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
-  offerImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
+  // Left: square image
+  offerImageWrap: {
+    width: 112,
+    height: 112,
+    position: 'relative',
+    overflow: 'hidden',
   },
   offerImagePlaceholder: {
     backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  offerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  offerHotBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
     backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  offerContent: {
-    ...StyleSheet.absoluteFillObject,
-    padding: 12,
-    justifyContent: 'space-between',
+  offerHotBadgeText: {
+    fontSize: 14,
   },
-  offerTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#ffffff',
-    lineHeight: 18,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  offerMiddle: {
-    alignItems: 'flex-start',
-  },
-  offerDiscountBadge: {
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  offerDiscount: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#fbbf24',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  // Right: text body
+  offerBody: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    gap: 3,
   },
   offerStoreName: {
     fontSize: 10,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.85)',
-    letterSpacing: 0.2,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  offerTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0f172a',
+    lineHeight: 19,
+    letterSpacing: -0.2,
+  },
+  offerPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  offerPointsChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#eef2ff',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  offerPointsText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#4f46e5',
+  },
+  offerPrice: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  offerStockRow: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  offerStockText: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   categoriesScroll: {
     marginBottom: 32,
@@ -795,6 +1123,167 @@ const styles = StyleSheet.create({
   recentStoresContainer: {
     gap: 12,
     marginBottom: 32,
+  },
+
+  // ── Merchant carousel — membership-card style ─────────────────────────
+  merchantsScroll: {
+    marginBottom: 32,
+    marginHorizontal: -24,
+  },
+  merchantsContainer: {
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  // Same aspect ratio as the membership card (1.586 ≈ standard credit card)
+  merchantCard: {
+    width: MERCHANT_CARD_W,
+    aspectRatio: 1.586,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  merchantFallbackBg: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  merchantBgCircle: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: '#ffffff',
+    opacity: 0.06,
+  },
+  merchantBgEmoji: {
+    fontSize: 64,
+    opacity: 0.55,
+  },
+  // Full-card scrim — heavier at bottom so footer text reads on any photo
+  merchantScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  // TOP ROW
+  merchantTopRow: {
+    position: 'absolute',
+    top: 14,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  merchantCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  merchantCategoryEmoji: {
+    fontSize: 13,
+  },
+  merchantCategoryLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  merchantOpenPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  merchantOpenDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
+  },
+  merchantOpenText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  // BOTTOM FOOTER — mirrors membership card footer layout
+  merchantFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 24,      // room for the gradient fade
+    paddingBottom: 14,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    gap: 5,
+  },
+  merchantFooterTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  merchantName: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: -0.5,
+  },
+  merchantOfferChip: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  merchantOfferText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#fbbf24',
+    letterSpacing: 0.3,
+  },
+  merchantMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    opacity: 0.8,
+  },
+  merchantRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  merchantRating: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fbbf24',
+  },
+  merchantAddrRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    flex: 1,
+  },
+  merchantAddr: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.85)',
+    flex: 1,
   },
   recentStoreCard: {
     width: '100%',

@@ -203,6 +203,29 @@ export const GET_FOR_YOU_OFFERS = `
       price
       discount
       storeName
+      stock
+    }
+  }
+`;
+
+export const GET_NEARBY_MERCHANTS = `
+  query GetNearbyMerchants($lat: Float, $lng: Float) {
+    nearbyMerchants(lat: $lat, lng: $lng) {
+      id
+      name
+      category
+      categoryEmoji
+      image
+      address
+      rating
+      open
+      topOffer {
+        id
+        title
+        discount
+        price
+        image
+      }
     }
   }
 `;

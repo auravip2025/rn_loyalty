@@ -1,17 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
-import Animated, { 
-  FadeInDown, 
-  FadeInUp, 
-  useAnimatedStyle, 
-  useSharedValue, 
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
   withSpring,
   withTiming
 } from 'react-native-reanimated';
 import { CheckCircle, Share2, Download, Home } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
+import FeedbackModal from '../../components/payment/FeedbackModal';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,10 @@ interface PaymentSuccessProps {
   pointsUsed: number;
   merchantName: string;
   transactionRef: string;
+  // Optional — present for reward redemptions so feedback sheet appears after animations
+  redemptionId?: string | null;
+  rewardName?: string | null;
+  feedbackUrl?: string | null;
 }
 
 const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
@@ -27,15 +32,27 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
   pointsUsed,
   merchantName,
   transactionRef,
+  redemptionId,
+  rewardName,
+  feedbackUrl,
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const scale = useSharedValue(0);
+  const scale   = useSharedValue(0);
   const opacity = useSharedValue(0);
 
+  // Show the feedback sheet only after the success animations have played (~1.4 s)
+  const hasFeedback = !!(feedbackUrl && redemptionId && rewardName);
+  const [showFeedback, setShowFeedback] = useState(false);
+
   useEffect(() => {
-    scale.value = withSpring(1, { damping: 12 });
+    scale.value   = withSpring(1, { damping: 12 });
     opacity.value = withTiming(1, { duration: 800 });
+
+    if (hasFeedback) {
+      const timer = setTimeout(() => setShowFeedback(true), 1400);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const checkCircleStyle = useAnimatedStyle(() => ({
@@ -44,6 +61,7 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
   }));
 
   return (
+    <>
     <ScreenWrapper
       backgroundColor="#ffffff"
       paddingHorizontal={24}
@@ -115,6 +133,19 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
       </TouchableOpacity>
 
     </ScreenWrapper>
+
+    {/* Feedback sheet — slides up after success animations so the user sees the
+        confirmation first, then gets an optional rating prompt */}
+    {hasFeedback && (
+      <FeedbackModal
+        visible={showFeedback}
+        rewardName={rewardName!}
+        redemptionId={redemptionId!}
+        feedbackUrl={feedbackUrl!}
+        onDone={() => setShowFeedback(false)}
+      />
+    )}
+    </>
   );
 };
 

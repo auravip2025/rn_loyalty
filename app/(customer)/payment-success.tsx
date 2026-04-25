@@ -6,10 +6,15 @@ export default function PaymentSuccessPage() {
     const router = useRouter();
     const params = useLocalSearchParams();
 
-    const amount = parseFloat(params.amount as string) || 0;
-    const pointsUsed = parseInt(params.pointsUsed as string) || 0;
-    const merchantName = (params.merchantName as string) || 'Merchant';
+    const amount        = parseFloat(params.amount as string) || 0;
+    const pointsUsed    = parseInt(params.pointsUsed as string) || 0;
+    const merchantName  = (params.merchantName  as string) || 'Merchant';
     const transactionRef = (params.transactionRef as string) || 'N/A';
+
+    // Optional feedback — present when this success page follows a reward redemption
+    const redemptionId  = (params.redemptionId as string) || null;
+    const rewardName    = (params.rewardName    as string) || null;
+    const feedbackUrl   = (params.feedbackUrl   as string) || null;
 
     return (
         <PaymentSuccess
@@ -17,6 +22,9 @@ export default function PaymentSuccessPage() {
             pointsUsed={pointsUsed}
             merchantName={merchantName}
             transactionRef={transactionRef}
+            redemptionId={redemptionId}
+            rewardName={rewardName}
+            feedbackUrl={feedbackUrl}
         />
     );
 }

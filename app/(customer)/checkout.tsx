@@ -6,7 +6,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useWallet } from '../../contexts/WalletContext';
 import CustomerCheckout from '../../screens/customer/CustomerCheckout';
 import SimulatedPaymentModal from '../../components/payment/SimulatedPaymentModal';
-import FeedbackModal from '../../components/payment/FeedbackModal';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 
@@ -46,17 +45,8 @@ export default function CheckoutPage() {
     const [simPayment, setSimPayment] = useState<{ cashRequired: number; redemptionId: string } | null>(null);
     const [showSimPay,  setShowSimPay]  = useState(false);
 
-    // Feedback
-    const [showFeedback, setShowFeedback] = useState(false);
-    const [feedbackData, setFeedbackData] = useState<{
-        redemptionId: string;
-        rewardName:   string;
-        pointsUsed:   number;
-    } | null>(null);
-
-    // Promise resolvers — the reward confirm promise is held open until the
-    // full payment + feedback flow finishes, so CustomerCheckout never calls
-    // onConfirmSuccess and navigates away prematurely.
+    // Promise resolvers — held open during simulated payment so CustomerCheckout
+    // doesn't navigate away before the payment modal finishes.
     const resolveRef = useRef<((id: string) => void) | null>(null);
     const rejectRef  = useRef<((e: Error)   => void) | null>(null);
 
@@ -91,17 +81,20 @@ export default function CheckoutPage() {
 
         if (result.type === 'pure_points') {
             refreshBalance?.();
-            setFeedbackData({
-                redemptionId: result.redemptionId,
-                rewardName:   result.reward?.name || (rewardNameParam as string) || 'Reward',
-                pointsUsed,
+            // Navigate to success immediately — feedback is shown there after animations
+            router.push({
+                pathname: '/(customer)/payment-success',
+                params: {
+                    amount:         '0',
+                    pointsUsed:     String(pointsUsed),
+                    merchantName:   merchantName as string,
+                    transactionRef: result.redemptionId,
+                    redemptionId:   result.redemptionId,
+                    rewardName:     result.reward?.name || (rewardNameParam as string) || 'Reward',
+                    feedbackUrl:    `${API_URL}/rewards/redemptions/${result.redemptionId}/feedback`,
+                },
             });
-            setShowFeedback(true);
-            // Hold the promise open — navigation happens inside onFeedbackDone
-            return new Promise<string>((resolve, reject) => {
-                resolveRef.current = resolve;
-                rejectRef.current  = reject;
-            });
+            return result.redemptionId;
         }
 
         // hybrid or cash_only — show simulated payment
@@ -117,12 +110,23 @@ export default function CheckoutPage() {
         setShowSimPay(false);
         refreshBalance?.();
         if (simPayment) {
-            setFeedbackData({
-                redemptionId: simPayment.redemptionId,
-                rewardName:   (rewardNameParam as string) || 'Reward',
-                pointsUsed:   Math.min(balance ?? 0, pointsCost),
+            // Navigate to success immediately — feedback shown there after animations
+            router.push({
+                pathname: '/(customer)/payment-success',
+                params: {
+                    amount:         String(total),
+                    pointsUsed:     String(Math.min(balance ?? 0, pointsCost)),
+                    merchantName:   merchantName as string,
+                    transactionRef: simPayment.redemptionId,
+                    redemptionId:   simPayment.redemptionId,
+                    rewardName:     (rewardNameParam as string) || 'Reward',
+                    feedbackUrl:    `${API_URL}/rewards/redemptions/${simPayment.redemptionId}/feedback`,
+                },
             });
-            setShowFeedback(true);
+            resolveRef.current?.(simPayment.redemptionId);
+            resolveRef.current = null;
+            rejectRef.current  = null;
+            setSimPayment(null);
         }
     };
 
@@ -132,27 +136,6 @@ export default function CheckoutPage() {
         rejectRef.current  = null;
         resolveRef.current = null;
         setSimPayment(null);
-    };
-
-    const onFeedbackDone = () => {
-        if (!feedbackData) return;
-        const { redemptionId, pointsUsed } = feedbackData;
-        setShowFeedback(false);
-        setFeedbackData(null);
-        // Resolve the pending promise so CustomerCheckout un-blocks
-        resolveRef.current?.(redemptionId);
-        resolveRef.current = null;
-        rejectRef.current  = null;
-        // Navigate to success — push so the stack remains and Done button can pop back to home
-        router.push({
-            pathname: '/(customer)/payment-success',
-            params: {
-                amount:         String(total),
-                pointsUsed:     String(pointsUsed),
-                merchantName:   merchantName as string,
-                transactionRef: redemptionId,
-            },
-        });
     };
 
     // ── Render guards ───────────────────────────────────────────────────────
@@ -214,16 +197,6 @@ export default function CheckoutPage() {
                 />
             )}
 
-            {/* Feedback modal — shown after any successful redemption */}
-            {feedbackData && (
-                <FeedbackModal
-                    visible={showFeedback}
-                    rewardName={feedbackData.rewardName}
-                    redemptionId={feedbackData.redemptionId}
-                    feedbackUrl={`${API_URL}/rewards/redemptions/${feedbackData.redemptionId}/feedback`}
-                    onDone={onFeedbackDone}
-                />
-            )}
         </>
     );
 }
