@@ -2,12 +2,14 @@ import {
   ArrowLeft,
   CheckCircle,
   Coins,
-  Minus,
-  Plus,
+  CreditCard,
   Wallet,
 } from 'lucide-react-native';
+import { ActivityIndicator } from 'react-native';
+import PointsSlider from '../../components/payment/PointsSlider';
 import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
+import PaymentBreakdown from '../../components/payment/PaymentBreakdown';
 import {
   Dimensions,
   ScrollView,
@@ -47,22 +49,35 @@ interface CustomerCheckoutProps {
   merchantName: string;
   cartItems?: CartItem[];
   totalAmount?: number;
+  /** Explicit points cost for reward redemptions (overrides dollar-derived calculation). */
+  pointsCostOverride?: number;
   balance?: number;
-  onConfirm?: (pointsUsed: number, merchantName: string) => Promise<void> | void;
+  /** Flow 3: SGD amount the user still needs to pay in cash after tokens. */
+  cashRequired?: number;
+  /** Flow 3: payment type determines button label and breakdown display. */
+  paymentType?: 'pure_points' | 'hybrid' | 'cash_only';
+  /** Returns optional redemptionId (rewards-service) or undefined (direct wallet) */
+  onConfirm?: (pointsUsed: number, merchantName: string) => Promise<string | undefined> | void;
   onConfirmSuccess?: (details: ConfirmSuccessDetails) => void;
   onDone?: () => void;
   onCancel?: () => void;
+  /** When true the Pay button is disabled and shows a spinner (backend call in-flight) */
+  confirming?: boolean;
 }
 
 const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
   merchantName,
   cartItems = [],
   totalAmount = 0,
+  pointsCostOverride = 0,
   balance = 0,
+  cashRequired = 0,
+  paymentType,
   onConfirm,
   onConfirmSuccess,
   onDone,
   onCancel,
+  confirming = false,
 }) => {
   const insets = useSafeAreaInsets();
   const [showQr, setShowQr] = useState(false);
@@ -78,10 +93,29 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
     }
   }, [isFocused]);
 
-  const pointsCost = Math.ceil(totalAmount * POINTS_PER_DOLLAR);
+  // Use the explicit points cost when provided (reward redemptions), otherwise
+  // derive from the dollar total (standard shopping checkout).
+  const pointsCost = pointsCostOverride > 0
+    ? pointsCostOverride
+    : Math.ceil(totalAmount * POINTS_PER_DOLLAR);
+
   const maxPoints = Math.min(balance, pointsCost);
-  const isFreeRedemption = totalAmount === 0;
-  const canPay = isFreeRedemption || (pointsToUse > 0 && pointsToUse <= balance);
+
+  // For reward redemptions without a server-computed breakdown, compute live from slider
+  const TOKENS_PER_SGD = 500;
+  const liveIsReward = !!pointsCostOverride;
+  const liveCashRequired = liveIsReward
+    ? Math.max(0, parseFloat(((pointsCost - pointsToUse) / TOKENS_PER_SGD).toFixed(2)))
+    : cashRequired;
+  const livePaymentType: 'pure_points' | 'hybrid' | 'cash_only' | undefined = liveIsReward
+    ? (pointsToUse >= pointsCost ? 'pure_points' : pointsToUse > 0 ? 'hybrid' : 'cash_only')
+    : paymentType;
+
+  const effectiveCashRequired = liveIsReward ? liveCashRequired : cashRequired;
+
+  // A "free redemption" only applies when both dollar price and points cost are 0.
+  const isFreeRedemption = totalAmount === 0 && pointsCost === 0;
+  const canPay = isFreeRedemption || pointsToUse > 0 || effectiveCashRequired > 0;
 
   useEffect(() => {
     // Default to full points payment if affordable
@@ -102,30 +136,32 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
     opacity: pulseOpacity.value,
   }));
 
-  const adjustPoints = (delta: number) => {
-    setPointsToUse((prev) => {
-      const step = 100; // adjust by 100 dandan at a time
-      const next = prev + delta * step;
-      return Math.max(0, Math.min(maxPoints, next));
-    });
-  };
 
   const handleConfirm = async () => {
-    const ref = `TXN-${Date.now()}`;
-    setTransactionRef(ref);
-    if (onConfirm) {
-      await onConfirm(pointsToUse, merchantName);
-    }
-    
-    if (onConfirmSuccess) {
-      onConfirmSuccess({
-        amount: totalAmount,
-        pointsUsed: pointsToUse,
-        merchantName: merchantName,
-        transactionRef: ref
-      });
-    } else {
-      setShowQr(true);
+    try {
+      // onConfirm may return a server-issued redemptionId (rewards-service path)
+      // or undefined (direct wallet deduction path). Fall back to local TXN ref.
+      let ref = `TXN-${Date.now()}`;
+      if (onConfirm) {
+        const result = await onConfirm(pointsToUse, merchantName);
+        if (result) ref = result; // use server redemptionId when available
+      }
+      setTransactionRef(ref);
+
+      if (onConfirmSuccess) {
+        onConfirmSuccess({
+          amount:         totalAmount,
+          pointsUsed:     pointsToUse,
+          merchantName:   merchantName,
+          transactionRef: ref,
+        });
+      } else {
+        setShowQr(true);
+      }
+    } catch (err: any) {
+      console.error('[Checkout] confirm failed:', err.message);
+      // Surface the error — in production wire this to an error state / toast
+      alert(err.message || 'Payment failed. Please try again.');
     }
   };
 
@@ -146,7 +182,6 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
   });
 
   const remainingBalance = balance - pointsToUse;
-  const dollarValue = (pointsToUse / POINTS_PER_DOLLAR).toFixed(2);
 
   // ─── QR CODE VIEW ───
   if (showQr) {
@@ -242,8 +277,12 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
               <View style={styles.totalRight}>
-                <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
-                <Text style={styles.totalPoints}>≈ {pointsCost.toLocaleString()} dandan</Text>
+                {totalAmount > 0 && (
+                  <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+                )}
+                <Text style={styles.totalPoints}>
+                  {pointsCost.toLocaleString()} dandan
+                </Text>
               </View>
             </View>
           </View>
@@ -258,7 +297,7 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
                 {balance.toLocaleString()} dandan
               </Text>
             </View>
-            {balance < pointsCost ? (
+            {!isFreeRedemption && balance < pointsCost ? (
               <View style={styles.insufficientBadge}>
                 <Text style={styles.insufficientText}>Insufficient</Text>
               </View>
@@ -268,63 +307,30 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
           </View>
         </View>
 
-        {/* Points Selector */}
+        {/* Flow 3: Payment Breakdown — shown for hybrid/cash_only */}
+        {paymentType && paymentType !== 'pure_points' && cashRequired > 0 && (
+          <View style={styles.section}>
+            <PaymentBreakdown
+              pointsReserved={pointsToUse}
+              cashRequired={cashRequired}
+              type={paymentType}
+            />
+          </View>
+        )}
+
+        {/* Points Slider */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>PAY WITH POINTS</Text>
           <View style={styles.cardCompact}>
-            <View style={styles.pointsSelector}>
-              <TouchableOpacity
-                onPress={() => adjustPoints(-1)}
-                style={styles.pointsBtn}
-              >
-                <Minus size={18} color="#0f172a" />
-              </TouchableOpacity>
-              <View style={styles.pointsDisplay}>
-                <Text style={styles.pointsValue}>
-                  {pointsToUse.toLocaleString()}
-                </Text>
-                <Text style={styles.pointsUnit}>dandan</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => adjustPoints(1)}
-                style={styles.pointsBtn}
-              >
-                <Plus size={18} color="#0f172a" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Quick select buttons */}
-            <View style={styles.quickSelect}>
-              {[25, 50, 75, 100].map((pct) => {
-                const val = Math.round((maxPoints * pct) / 100 / 100) * 100;
-                const isActive = pointsToUse === val;
-                return (
-                  <TouchableOpacity
-                    key={pct}
-                    onPress={() => setPointsToUse(val)}
-                    style={[
-                      styles.quickBtn,
-                      isActive && styles.quickBtnActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.quickBtnText,
-                        isActive && styles.quickBtnTextActive,
-                      ]}
-                    >
-                      {pct}%
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Dollar value</Text>
-              <Text style={styles.breakdownValue}>${dollarValue}</Text>
-            </View>
-            <View style={styles.breakdownRow}>
+            <PointsSlider
+              value={pointsToUse}
+              min={0}
+              max={maxPoints}
+              step={50}
+              cashRequired={effectiveCashRequired}
+              onChange={setPointsToUse}
+            />
+            <View style={[styles.breakdownRow, { marginTop: 10 }]}>
               <Text style={styles.breakdownLabel}>Remaining balance</Text>
               <Text
                 style={[
@@ -342,13 +348,26 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
       {/* Fixed Footer with Submit Button */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
-          style={[styles.payBtn, !canPay ? { opacity: 0.5 } : undefined]}
+          style={[styles.payBtn, (!canPay || confirming) ? { opacity: 0.6 } : undefined]}
           onPress={handleConfirm}
-          disabled={!canPay}
+          disabled={!canPay || confirming}
         >
-          <Coins size={18} color="#ffffff" />
+          {confirming
+            ? <ActivityIndicator size="small" color="#ffffff" />
+            : livePaymentType === 'hybrid' || livePaymentType === 'cash_only'
+              ? <CreditCard size={18} color="#ffffff" />
+              : <Coins size={18} color="#ffffff" />
+          }
           <Text style={styles.payBtnText}>
-            {isFreeRedemption ? 'Redeem Prize' : `Pay ${pointsToUse.toLocaleString()} dandan`}
+            {confirming
+              ? 'Reserving tokens…'
+              : isFreeRedemption
+                ? 'Redeem Prize'
+                : livePaymentType === 'hybrid'
+                  ? `Use tokens + Pay SGD ${effectiveCashRequired.toFixed(2)}`
+                  : livePaymentType === 'cash_only'
+                    ? `Pay SGD ${effectiveCashRequired.toFixed(2)}`
+                    : `Pay ${pointsToUse.toLocaleString()} dandan`}
           </Text>
         </TouchableOpacity>
       </View>

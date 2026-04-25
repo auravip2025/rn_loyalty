@@ -194,14 +194,15 @@ export const GET_OFFERS = `
 `;
 
 export const GET_FOR_YOU_OFFERS = `
-  query GetForYouOffers {
-    forYouOffers {
+  query GetForYouOffers($userId: ID) {
+    forYouOffers(userId: $userId) {
       id
       title
       desc
       image
       price
       discount
+      storeName
     }
   }
 `;

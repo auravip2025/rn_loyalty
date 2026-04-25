@@ -104,6 +104,12 @@ export default function CustomerLayout() {
                     href: null,
                 }}
             />
+            <Tabs.Screen
+                name="payment-success"
+                options={{
+                    href: null,
+                }}
+            />
         </Tabs>
     );
 }

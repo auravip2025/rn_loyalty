@@ -12,12 +12,20 @@ export default function RewardsPage() {
             balance={balance}
             onBack={() => router.back()}
             onRedeem={(reward: any) => {
+                // Always pass the real dollar price so the order summary shows it.
+                // Pass pointsCost separately so checkout can use it directly instead
+                // of deriving it from dollars (rewards have an explicit points price).
+                const dollarPrice = Number(reward.price) || 0;
+                const pointsCost  = Number(reward.cost ?? reward.pointsPrice) || 0;
                 router.push({
                     pathname: '/(customer)/checkout',
                     params: {
-                        cartStr: JSON.stringify([{ title: reward.title, quantity: reward.bundleCount || 1, price: reward.isCash ? reward.price : 0 }]),
-                        totalAmount: reward.isCash ? String(reward.price) : '0',
-                        merchantName: 'DanDan Rewards',
+                        cartStr:      JSON.stringify([{ title: reward.title, quantity: reward.bundleCount || 1, price: dollarPrice }]),
+                        totalAmount:  String(dollarPrice),
+                        pointsCost:   String(pointsCost),
+                        rewardId:     String(reward.id),
+                        rewardName:   reward.title || reward.name || '',
+                        merchantName: reward.storeName || 'DanDan Rewards',
                     },
                 });
             }}

@@ -69,12 +69,23 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const sessionUser = { id: userId, email, isNew: isNewUser };
-      await AsyncStorage.setItem('@dandan_user', JSON.stringify(sessionUser));
-      await AsyncStorage.setItem('@dandan_role', selectedRole);
 
-      // New merchants start at 'pending' (needs onboarding)
+      // Write ALL storage keys before updating React state.
+      // Apollo's authLink reads the token from AsyncStorage on every request —
+      // if state updates trigger a re-render (and a fetch) before the writes
+      // finish, the first request goes out without an Authorization header.
+      const storageWrites = [
+        AsyncStorage.setItem('@dandan_user', JSON.stringify(sessionUser)),
+        AsyncStorage.setItem('@dandan_role', selectedRole),
+      ];
       if (selectedRole === 'merchant' && isNewUser) {
-        await AsyncStorage.setItem('@dandan_onboarding_status', 'pending');
+        storageWrites.push(AsyncStorage.setItem('@dandan_onboarding_status', 'pending'));
+      }
+      await Promise.all(storageWrites);
+
+      // Now it's safe to flip React state — any fetch triggered by these
+      // updates will find the token already in AsyncStorage.
+      if (selectedRole === 'merchant' && isNewUser) {
         setOnboardingStatus('pending');
       }
 

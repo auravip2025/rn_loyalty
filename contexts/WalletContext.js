@@ -18,9 +18,7 @@ export const WalletProvider = ({ children }) => {
   // then refetch the wallet with a fresh token.
   useEffect(() => {
     if (isAuthenticated) {
-      client.clearStore()
-        .then(() => refetch())
-        .catch(() => {}); // suppress any AbortError / unmount races
+      refetch().catch(() => {});
     }
   }, [isAuthenticated]);
 

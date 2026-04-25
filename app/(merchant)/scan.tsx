@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import ScanView from '../../components/old_app/payment/ScanView';
 import MerchantScanPayment from '../../screens/merchant/MerchantScanPayment';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function MerchantScanPage() {
     const router = useRouter();
+    const { merchantProfile } = useAuth() as any;
     const [paymentData, setPaymentData] = useState<any>(null);
 
     const handleScanComplete = (data: string) => {
@@ -26,6 +28,7 @@ export default function MerchantScanPage() {
         return (
             <MerchantScanPayment
                 transactionData={paymentData}
+                storeId={merchantProfile?.storeId || merchantProfile?.id}
                 onDone={() => {
                     setPaymentData(null);
                     router.back();

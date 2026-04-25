@@ -15,11 +15,60 @@ export default function OfferDetailsPage() {
         return null;
     }
 
+    // ── Redeem → forward to the unified checkout flow ──────────────────────────
+    // The "For You" offer object has these fields (see graphql-gateway rewardToOffer):
+    //   id        → rewardId (catalog reward id)
+    //   title     → reward name
+    //   discount  → string like "200 pts" — extract the integer for pointsCost
+    //   price     → SGD price; may be 0 for pure-points rewards
+    //   storeName → merchant display name (or null)
+    //
+    // We hand off to /(customer)/checkout, which already wires the full
+    // initiate → reserve → (simulated pay) → confirm → success flow against
+    // the rewards-service backend. That's the same flow the Rewards tab uses.
+    const handleRedeem = () => {
+        if (!offer?.id) {
+            router.back();
+            return;
+        }
+
+        // Parse "200 pts" → 200; missing or non-numeric falls back to 0
+        const pointsCost = (() => {
+            if (typeof offer.discount !== 'string') return 0;
+            const m = offer.discount.match(/(\d+)/);
+            return m ? parseInt(m[1], 10) : 0;
+        })();
+
+        const total = Number(offer.price) || 0;
+        const merchantName = offer.storeName || offer.title || 'Reward';
+
+        // Minimal cart so the checkout page's render guard passes. The
+        // checkout treats this as a reward redemption because rewardId is set.
+        const cartItems = [{
+            id:       offer.id,
+            name:     offer.title,
+            price:    total,
+            quantity: 1,
+        }];
+
+        router.push({
+            pathname: '/(customer)/checkout' as any,
+            params: {
+                cartStr:      JSON.stringify(cartItems),
+                totalAmount:  String(total),
+                merchantName,
+                pointsCost:   String(pointsCost),
+                rewardId:     String(offer.id),
+                rewardName:   offer.title || 'Reward',
+            },
+        });
+    };
+
     return (
         <OfferDetails
             offer={offer}
             onBack={() => router.back()}
-            onCheckout={() => router.back()}
+            onCheckout={handleRedeem}
         />
     );
 }

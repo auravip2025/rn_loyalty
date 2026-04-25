@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import Animated, { 
   FadeInDown, 
@@ -8,7 +9,7 @@ import Animated, {
   withSpring,
   withTiming
 } from 'react-native-reanimated';
-import { CheckCircle, Share2, Download } from 'lucide-react-native';
+import { CheckCircle, Share2, Download, Home } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
@@ -21,13 +22,14 @@ interface PaymentSuccessProps {
   transactionRef: string;
 }
 
-const PaymentSuccess: React.FC<PaymentSuccessProps> = ({ 
-  amount, 
-  pointsUsed, 
-  merchantName, 
+const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
+  amount,
+  pointsUsed,
+  merchantName,
   transactionRef,
 }) => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
 
@@ -103,6 +105,14 @@ const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
         </View>
       </View>
 
+      {/* Done — go back to home */}
+      <TouchableOpacity
+        style={[styles.doneButton, { marginBottom: insets.bottom + 16 }]}
+        onPress={() => router.navigate('/(customer)/home' as any)}
+      >
+        <Home size={20} color="#ffffff" />
+        <Text style={styles.doneButtonText}>Back to Home</Text>
+      </TouchableOpacity>
 
     </ScreenWrapper>
   );
@@ -220,6 +230,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#64748b',
+  },
+  doneButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 28,
+    backgroundColor: '#0f172a',
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#ffffff',
   },
 });
 

@@ -47,6 +47,7 @@ interface Offer {
   discount?: string | null;
   expires?: string | null;
   price?: number;
+  storeName?: string | null;
 }
 
 interface Store {
@@ -124,9 +125,22 @@ const OfferCardItem: React.FC<OfferCardItemProps> = ({ offer, index, onPress }) 
         }
         <View style={styles.offerOverlay} />
         <View style={styles.offerContent}>
-          {offer.discount ? <Text style={styles.offerDiscount}>{offer.discount}</Text> : null}
-          <Text style={styles.offerDesc}>{offer.desc}</Text>
-          <Text style={styles.offerTitle}>{offer.title}</Text>
+          {/* Top: reward name */}
+          <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
+
+          {/* Middle: points / discount badge */}
+          <View style={styles.offerMiddle}>
+            {offer.discount ? (
+              <View style={styles.offerDiscountBadge}>
+                <Text style={styles.offerDiscount}>{offer.discount}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Bottom: store name */}
+          {offer.storeName ? (
+            <Text style={styles.offerStoreName} numberOfLines={1}>🏪 {offer.storeName}</Text>
+          ) : null}
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -405,7 +419,7 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
         ) : (
           <View style={styles.offersEmpty}>
             <Text style={styles.offersEmptyText}>
-              Set your preferences to see personalised rewards here.
+              No rewards available right now. Check back soon!
             </Text>
           </View>
         )}
@@ -654,10 +668,27 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   offerContent: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    right: 12,
+    ...StyleSheet.absoluteFillObject,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  offerTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#ffffff',
+    lineHeight: 18,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  offerMiddle: {
+    alignItems: 'flex-start',
+  },
+  offerDiscountBadge: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   offerDiscount: {
     fontSize: 10,
@@ -665,27 +696,15 @@ const styles = StyleSheet.create({
     color: '#fbbf24',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 2,
   },
-  offerTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#fbbf24',
-    marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0,0,0,0.75)',
+  offerStoreName: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.85)',
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-  },
-  offerDesc: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#ffffff',
-    lineHeight: 22,
-    textShadowColor: 'rgba(0,0,0,0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 3,
   },
   categoriesScroll: {
     marginBottom: 32,

@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     Check,
+    ChevronDown,
     Gift,
     ImageIcon,
     Leaf,
     Package,
     Plus,
+    Search,
     Settings,
     Trash2,
     X,
@@ -16,6 +18,7 @@ import {
     ActivityIndicator,
     Alert,
     Animated,
+    Dimensions,
     Image,
     Modal,
     PanResponder,
@@ -27,15 +30,14 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+
+const SCREEN_H = Dimensions.get('window').height;
 import Badge from '../../components/old_app/common/Badge';
 import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
-
-// Fallback list when the merchant has no store categories configured yet
-const REWARD_CATEGORIES = ['Food', 'Travel', 'Cosmetics', 'Retail', 'Fitness', 'Entertainment', 'Tech', 'Health', 'Other'];
 
 // ─── Reward type → display icon ───────────────────────────────────────────────
 const typeIcon = (type) => {
@@ -44,11 +46,7 @@ const typeIcon = (type) => {
 };
 
 // ─── Create / Edit Modal ──────────────────────────────────────────────────────
-const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave, onClose }) => {
-    // Resolved category list: store-set categories, or fallback to full list
-    const availableCategories = storeCategories && storeCategories.length > 0
-        ? storeCategories
-        : REWARD_CATEGORIES;
+const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose }) => {
     const isEdit = !!reward?.id;
     const translateY = useRef(new Animated.Value(0)).current;
 
@@ -94,29 +92,26 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
         isGreenReward: false,
         carbonOffsetKg: '',
         ecoDescription: '',
-        categories: [],
+        storeId: '',
         imageUri: null,
         imageChanged: false,
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState({});
+    const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+    const [storeSearch, setStoreSearch] = useState('');
+    const scrollRef = useRef(null);
 
-    // Derive the categories to pre-select when the form opens
-    const resolveInitialCategories = (rewardObj) => {
-        if (rewardObj) {
-            // Editing: use saved categories, or derive from legacy single category field
-            if (Array.isArray(rewardObj.categories) && rewardObj.categories.length > 0) {
-                return rewardObj.categories;
-            }
-            if (rewardObj.category) return [rewardObj.category];
-        }
-        // New reward: start with all store categories pre-selected
-        return availableCategories.length > 0 ? [...availableCategories] : [REWARD_CATEGORIES[0]];
-    };
+    // Auto-select the only store when there is exactly one; otherwise start blank
+    const defaultStoreId = stores?.length === 1 ? stores[0].id : '';
 
     useEffect(() => {
         if (visible) {
             setError(null);
+            setFieldErrors({});
+            setStoreDropdownOpen(false);
+            setStoreSearch('');
             setForm(reward ? {
                 name: reward.name || '',
                 description: reward.description || '',
@@ -128,7 +123,7 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                 isGreenReward: reward.isGreenReward || false,
                 carbonOffsetKg: reward.carbonOffsetKg ? String(reward.carbonOffsetKg) : '',
                 ecoDescription: reward.ecoDescription || '',
-                categories: resolveInitialCategories(reward),
+                storeId: reward.storeId || defaultStoreId,
                 imageUri: reward.imageUrl || null,
                 imageChanged: false,
             } : {
@@ -142,12 +137,12 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                 isGreenReward: false,
                 carbonOffsetKg: '',
                 ecoDescription: '',
-                categories: resolveInitialCategories(null),
+                storeId: defaultStoreId,
                 imageUri: null,
                 imageChanged: false,
             });
         }
-    }, [visible, reward, storeCategories]);
+    }, [visible, reward, stores]);
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -174,23 +169,25 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
         };
     };
 
-    const toggleCategory = (cat) => {
-        setForm(f => {
-            const already = f.categories.includes(cat);
-            // Enforce minimum 1: cannot deselect the last remaining category
-            if (already && f.categories.length === 1) return f;
-            return {
-                ...f,
-                categories: already
-                    ? f.categories.filter(c => c !== cat)
-                    : [...f.categories, cat],
-            };
-        });
-    };
-
     const handleSave = async () => {
-        if (!form.name.trim()) { setError('Reward name is required'); return; }
-        if (form.categories.length === 0) { setError('Select at least one category'); return; }
+        // Collect all field-level errors before touching the API
+        const errs = {};
+        if (!form.name.trim())
+            errs.name = 'Reward name is required';
+        if (!form.storeId)
+            errs.storeId = 'Select the store that offers this reward';
+        if (!form.pointsPrice || isNaN(parseInt(form.pointsPrice)) || parseInt(form.pointsPrice) <= 0)
+            errs.pointsPrice = 'Points cost is required (must be > 0)';
+        if (!form.stock || isNaN(parseInt(form.stock)) || parseInt(form.stock) < 0)
+            errs.stock = 'Stock quantity is required';
+
+        if (Object.keys(errs).length > 0) {
+            setFieldErrors(errs);
+            // Scroll to top so the user can see the first error
+            scrollRef.current?.scrollTo({ y: 0, animated: true });
+            return;
+        }
+        setFieldErrors({});
         setSaving(true);
         setError(null);
         try {
@@ -201,6 +198,7 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
             if (form.imageChanged && form.imageUri) {
                 const formData = new FormData();
                 formData.append('merchantId', String(merchantId));
+                formData.append('storeId', String(form.storeId));
                 formData.append('name', form.name.trim());
                 if (form.description.trim()) formData.append('description', form.description.trim());
                 formData.append('type', form.type);
@@ -209,8 +207,6 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                 formData.append('stock', String(form.stock === '∞' ? 9999999 : parseInt(form.stock) || 0));
                 formData.append('isEnabled', String(form.isEnabled));
                 formData.append('isGreenReward', String(form.isGreenReward));
-                formData.append('categories', JSON.stringify(form.categories));
-                formData.append('category', form.categories[0] || ''); // legacy BC
                 if (form.carbonOffsetKg) formData.append('carbonOffsetKg', String(parseFloat(form.carbonOffsetKg)));
                 if (form.ecoDescription.trim()) formData.append('ecoDescription', form.ecoDescription.trim());
                 const ext = form.imageUri.split('.').pop()?.toLowerCase() || 'jpg';
@@ -227,6 +223,7 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                 const headers = { 'Content-Type': 'application/json', ...authHeader };
                 const payload = {
                     merchantId,
+                    storeId: form.storeId,
                     name: form.name.trim(),
                     description: form.description.trim() || null,
                     type: form.type,
@@ -234,8 +231,6 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                     pointsPrice: form.pointsPrice ? parseInt(form.pointsPrice) : null,
                     stock: form.stock === '∞' ? 9999999 : parseInt(form.stock) || 0,
                     isEnabled: form.isEnabled,
-                    categories: form.categories,
-                    category: form.categories[0] || null, // legacy BC
                     isGreenReward: form.isGreenReward,
                     carbonOffsetKg: form.carbonOffsetKg ? parseFloat(form.carbonOffsetKg) : 0,
                     ecoDescription: form.ecoDescription.trim() || null,
@@ -256,20 +251,32 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
         }
     };
 
-    const field = (label, key, opts = {}) => (
-        <View style={modalStyles.field}>
-            <Text style={modalStyles.label}>{label}</Text>
-            <TextInput
-                style={modalStyles.input}
-                value={String(form[key] ?? '')}
-                placeholder={opts.placeholder || ''}
-                keyboardType={opts.numeric ? 'numeric' : 'default'}
-                onChangeText={(v) => setForm({ ...form, [key]: v })}
-                multiline={opts.multiline}
-                numberOfLines={opts.multiline ? 3 : 1}
-            />
-        </View>
+    const filteredStores = (stores || []).filter(s =>
+        (s.name || '').toLowerCase().includes(storeSearch.toLowerCase())
     );
+    const selectedStoreName = (stores || []).find(s => s.id === form.storeId)?.name || null;
+
+    const field = (label, key, opts = {}) => {
+        const err = fieldErrors[key];
+        return (
+            <View style={modalStyles.field}>
+                <Text style={modalStyles.label}>{label}</Text>
+                <TextInput
+                    style={[modalStyles.input, err && modalStyles.inputError]}
+                    value={String(form[key] ?? '')}
+                    placeholder={opts.placeholder || ''}
+                    keyboardType={opts.numeric ? 'numeric' : 'default'}
+                    onChangeText={(v) => {
+                        setForm({ ...form, [key]: v });
+                        if (err) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                    }}
+                    multiline={opts.multiline}
+                    numberOfLines={opts.multiline ? 3 : 1}
+                />
+                {err ? <Text style={modalStyles.fieldError}>{err}</Text> : null}
+            </View>
+        );
+    };
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -288,9 +295,15 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                             >
                                 <View style={modalStyles.sheetHandle} />
                             </View>
-                    <Text style={modalStyles.sheetTitle}>{isEdit ? 'Edit Reward' : 'New Reward Item'}</Text>
+                            <Text style={modalStyles.sheetTitle}>{isEdit ? 'Edit Reward' : 'New Reward Item'}</Text>
 
-                    <ScrollView showsVerticalScrollIndicator={false} style={modalStyles.scroll}>
+                            <ScrollView
+                                ref={scrollRef}
+                                showsVerticalScrollIndicator={false}
+                                style={modalStyles.scroll}
+                                contentContainerStyle={modalStyles.scrollContent}
+                                keyboardShouldPersistTaps="handled"
+                            >
 
                         {/* Image picker — preview matches customer card dimensions (100px wide side image) */}
                         <View style={modalStyles.imageSection}>
@@ -326,6 +339,112 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                             </View>
                         </View>
 
+                        {/* Store picker — required: which store offers this reward */}
+                        <View style={modalStyles.field}>
+                            <Text style={[modalStyles.label, fieldErrors.storeId && modalStyles.labelError]}>
+                                Offered at Store *
+                            </Text>
+                            {(stores || []).length === 0 ? (
+                                <View style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginTop: 4 }}>
+                                    <Text style={{ fontSize: 12, color: '#854d0e', fontWeight: '700', marginBottom: 2 }}>
+                                        No stores found
+                                    </Text>
+                                    <Text style={{ fontSize: 12, color: '#92400e' }}>
+                                        Go to the Programs tab and create a store first. Rewards must be linked to the store where they are offered.
+                                    </Text>
+                                </View>
+                            ) : (
+                                <View>
+                                    {/* Trigger */}
+                                    <TouchableOpacity
+                                        activeOpacity={0.75}
+                                        style={[
+                                            modalStyles.ddTrigger,
+                                            fieldErrors.storeId && modalStyles.ddTriggerError,
+                                            storeDropdownOpen && modalStyles.ddTriggerOpen,
+                                        ]}
+                                        onPress={() => {
+                                            setStoreDropdownOpen(v => !v);
+                                            setStoreSearch('');
+                                        }}
+                                    >
+                                        <Text
+                                            style={selectedStoreName ? modalStyles.ddValue : modalStyles.ddPlaceholder}
+                                            numberOfLines={1}
+                                        >
+                                            {selectedStoreName || 'Select a store…'}
+                                        </Text>
+                                        <ChevronDown
+                                            size={16}
+                                            color="#64748b"
+                                            style={storeDropdownOpen && { transform: [{ rotate: '180deg' }] }}
+                                        />
+                                    </TouchableOpacity>
+
+                                    {/* Dropdown panel */}
+                                    {storeDropdownOpen && (
+                                        <View style={modalStyles.ddPanel}>
+                                            {/* Search row */}
+                                            <View style={modalStyles.ddSearchRow}>
+                                                <Search size={14} color="#94a3b8" />
+                                                <TextInput
+                                                    style={modalStyles.ddSearchInput}
+                                                    placeholder="Search stores…"
+                                                    placeholderTextColor="#94a3b8"
+                                                    value={storeSearch}
+                                                    onChangeText={setStoreSearch}
+                                                    autoFocus
+                                                />
+                                                {storeSearch.length > 0 && (
+                                                    <TouchableOpacity onPress={() => setStoreSearch('')}>
+                                                        <X size={14} color="#94a3b8" />
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
+                                            {/* Results */}
+                                            <ScrollView
+                                                style={modalStyles.ddList}
+                                                keyboardShouldPersistTaps="handled"
+                                                nestedScrollEnabled
+                                            >
+                                                {filteredStores.length === 0 ? (
+                                                    <Text style={modalStyles.ddEmpty}>
+                                                        No stores match "{storeSearch}"
+                                                    </Text>
+                                                ) : filteredStores.map(s => {
+                                                    const selected = form.storeId === s.id;
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={s.id}
+                                                            activeOpacity={0.75}
+                                                            style={[modalStyles.ddItem, selected && modalStyles.ddItemSelected]}
+                                                            onPress={() => {
+                                                                setForm(f => ({ ...f, storeId: s.id }));
+                                                                setFieldErrors(e => ({ ...e, storeId: undefined }));
+                                                                setStoreDropdownOpen(false);
+                                                                setStoreSearch('');
+                                                            }}
+                                                        >
+                                                            <Text
+                                                                style={[modalStyles.ddItemText, selected && modalStyles.ddItemTextSelected]}
+                                                                numberOfLines={1}
+                                                            >
+                                                                {s.name || s.id}
+                                                            </Text>
+                                                            {selected && <Check size={14} color="#4f46e5" />}
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
+                                            </ScrollView>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+                            {fieldErrors.storeId ? (
+                                <Text style={modalStyles.fieldError}>{fieldErrors.storeId}</Text>
+                            ) : null}
+                        </View>
+
                         {/* Type toggle */}
                         <View style={modalStyles.typeRow}>
                             {['SINGLE', 'BUNDLE'].map(t => (
@@ -341,57 +460,11 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                             ))}
                         </View>
 
-                        {/* Category selection — multi-select, seeded from store categories */}
-                        <View style={modalStyles.field}>
-                            <View style={modalStyles.catHeaderRow}>
-                                <Text style={modalStyles.label}>Categories</Text>
-                                <Text style={modalStyles.catMinHint}>min. 1 required</Text>
-                            </View>
-                            <View style={modalStyles.catGrid}>
-                                {availableCategories.map(cat => {
-                                    const isSelected = form.categories.includes(cat);
-                                    const isLast = isSelected && form.categories.length === 1;
-                                    return (
-                                        <TouchableOpacity
-                                            key={cat}
-                                            activeOpacity={isLast ? 1 : 0.75}
-                                            onPress={() => toggleCategory(cat)}
-                                            style={[
-                                                modalStyles.catPill,
-                                                isSelected && modalStyles.catPillSelected,
-                                                isLast && modalStyles.catPillLocked,
-                                            ]}
-                                        >
-                                            {isSelected && (
-                                                <View style={modalStyles.catCheck}>
-                                                    <Check size={10} color="#fff" />
-                                                </View>
-                                            )}
-                                            <Text style={[
-                                                modalStyles.catText,
-                                                isSelected && modalStyles.catTextSelected,
-                                            ]}>
-                                                {cat}
-                                            </Text>
-                                            {isLast && (
-                                                <Text style={modalStyles.catLockIcon}>🔒</Text>
-                                            )}
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
-                            {availableCategories !== REWARD_CATEGORIES && (
-                                <Text style={modalStyles.catSourceNote}>
-                                    Based on your store's categories
-                                </Text>
-                            )}
-                        </View>
-
                         {field('Reward Name *', 'name', { placeholder: 'e.g. Free Flat White' })}
                         {field('Description', 'description', { placeholder: 'Optional', multiline: true })}
-                        {field('Points Cost', 'pointsPrice', { placeholder: 'e.g. 200', numeric: true })}
+                        {field('Points Cost *', 'pointsPrice', { placeholder: 'e.g. 200', numeric: true })}
                         {field('Fiat Price ($)', 'price', { placeholder: '0.00', numeric: true })}
-                        {field('Stock', 'stock', { placeholder: 'e.g. 100', numeric: true })}
+                        {field('Stock *', 'stock', { placeholder: 'e.g. 100', numeric: true })}
 
                         {/* Enabled toggle */}
                         <View style={modalStyles.toggleRow}>
@@ -426,19 +499,19 @@ const RewardFormModal = ({ visible, reward, merchantId, storeCategories, onSave,
                         )}
 
                         {error ? <Text style={modalStyles.error}>{error}</Text> : null}
-                    </ScrollView>
+                            </ScrollView>
 
-                    <View style={modalStyles.actions}>
-                        <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose} disabled={saving}>
-                            <Text style={modalStyles.cancelBtnText}>Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSave} disabled={saving}>
-                            {saving
-                                ? <ActivityIndicator size="small" color="#fff" />
-                                : <Text style={modalStyles.saveBtnText}>{isEdit ? 'Save Changes' : 'Create Reward'}</Text>
-                            }
-                        </TouchableOpacity>
-                    </View>
+                            <View style={modalStyles.actions}>
+                                <TouchableOpacity style={modalStyles.cancelBtn} onPress={onClose} disabled={saving}>
+                                    <Text style={modalStyles.cancelBtnText}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSave} disabled={saving}>
+                                    {saving
+                                        ? <ActivityIndicator size="small" color="#fff" />
+                                        : <Text style={modalStyles.saveBtnText}>{isEdit ? 'Save Changes' : 'Create Reward'}</Text>
+                                    }
+                                </TouchableOpacity>
+                            </View>
                         </Animated.View>
                     </TouchableWithoutFeedback>
                 </View>
@@ -451,12 +524,13 @@ const modalStyles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: {
         backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        paddingHorizontal: 20, maxHeight: '92%',
+        paddingHorizontal: 20, height: SCREEN_H * 0.88, flexDirection: 'column',
     },
     sheetHandleHitArea: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
     sheetHandle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
     sheetTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a', marginBottom: 16 },
-    scroll: { maxHeight: 480 },
+    scroll: { flex: 1 },
+    scrollContent: { paddingBottom: 24 },
     typeRow: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 12, padding: 4, gap: 4, marginBottom: 16 },
     typeBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
     typeBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
@@ -475,28 +549,43 @@ const modalStyles = StyleSheet.create({
     toggleBtnOn: { backgroundColor: '#ecfdf5', borderColor: '#10b981' },
     toggleBtnText: { fontSize: 12, fontWeight: '700', color: '#374151' },
     error: { fontSize: 12, color: '#dc2626', fontWeight: '600', marginTop: 8 },
+    fieldError: { fontSize: 11, color: '#dc2626', fontWeight: '600', marginTop: 4 },
+    inputError: { borderColor: '#dc2626', backgroundColor: '#fff5f5' },
+    labelError: { color: '#dc2626' },
     actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
-    // Category multi-select
-    catHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-    catMinHint: { fontSize: 10, fontWeight: '700', color: '#94a3b8' },
-    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-    catPill: {
-        flexDirection: 'row', alignItems: 'center', gap: 5,
-        paddingHorizontal: 12, paddingVertical: 8,
-        borderRadius: 100, borderWidth: 1.5, borderColor: '#e2e8f0',
-        backgroundColor: '#fff',
+    // Store searchable dropdown
+    ddTrigger: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10,
+        paddingHorizontal: 12, paddingVertical: 11,
+        backgroundColor: '#f8fafc', marginTop: 4,
     },
-    catPillSelected: { backgroundColor: '#eef2ff', borderColor: '#4f46e5' },
-    catPillLocked: { opacity: 0.75 },
-    catCheck: {
-        width: 15, height: 15, borderRadius: 8,
-        backgroundColor: '#4f46e5',
-        justifyContent: 'center', alignItems: 'center',
+    ddTriggerOpen: { borderColor: '#4f46e5', borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+    ddTriggerError: { borderColor: '#dc2626', backgroundColor: '#fff5f5' },
+    ddValue: { flex: 1, fontSize: 14, color: '#0f172a', marginRight: 8 },
+    ddPlaceholder: { flex: 1, fontSize: 14, color: '#94a3b8', marginRight: 8 },
+    ddPanel: {
+        borderWidth: 1, borderTopWidth: 0, borderColor: '#4f46e5',
+        borderBottomLeftRadius: 10, borderBottomRightRadius: 10,
+        backgroundColor: '#fff', overflow: 'hidden',
     },
-    catText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
-    catTextSelected: { color: '#4f46e5', fontWeight: '800' },
-    catLockIcon: { fontSize: 10 },
-    catSourceNote: { fontSize: 10, color: '#94a3b8', fontWeight: '600', marginTop: 6 },
+    ddSearchRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        paddingHorizontal: 10, paddingVertical: 9,
+        borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
+        backgroundColor: '#f8fafc',
+    },
+    ddSearchInput: { flex: 1, fontSize: 13, color: '#0f172a', paddingVertical: 0 },
+    ddList: { maxHeight: 180 },
+    ddItem: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: 14, paddingVertical: 11,
+        borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+    },
+    ddItemSelected: { backgroundColor: '#eef2ff' },
+    ddItemText: { flex: 1, fontSize: 14, color: '#374151', marginRight: 8 },
+    ddItemTextSelected: { color: '#4f46e5', fontWeight: '700' },
+    ddEmpty: { fontSize: 13, color: '#94a3b8', textAlign: 'center', paddingVertical: 14 },
     // Image picker
     imageSection: { marginBottom: 16 },
     imagePreviewCard: {
@@ -580,8 +669,8 @@ const MerchantCatalog = () => {
     const [error, setError] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [editingReward, setEditingReward] = useState(null);
-    // Union of all categories set across the merchant's stores
-    const [storeCategories, setStoreCategories] = useState([]);
+    // All stores for this merchant — used for the store picker in the reward form
+    const [stores, setStores] = useState([]);
 
     const getAuthHeaders = async () => {
         const token = await AsyncStorage.getItem('@dandan_auth_token');
@@ -608,28 +697,34 @@ const MerchantCatalog = () => {
         }
     }, [merchantId]);
 
-    // Fetch all stores to collect their categories
-    const loadStoreCategories = useCallback(async () => {
+    // Fetch all stores for this merchant — used in the reward form's store picker
+    const loadStores = useCallback(async () => {
         if (!merchantId) return;
         try {
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/stores/merchant/${merchantId}`, { headers });
-            if (!res.ok) return;
-            const stores = await res.json();
-            const catSet = new Set();
-            (Array.isArray(stores) ? stores : []).forEach(s => {
-                (s.settings?.categories || []).forEach(c => catSet.add(c));
-            });
-            if (catSet.size > 0) setStoreCategories([...catSet]);
-        } catch {
-            // Non-fatal; falls back to REWARD_CATEGORIES in the modal
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                console.error('[MerchantCatalog] loadStores failed:', res.status, d.error);
+                return;
+            }
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : [];
+            console.log('[MerchantCatalog] loadStores:', list.length, 'store(s)', list.map(s => ({ id: s.id, name: s.name })));
+            setStores(list.map(s => ({
+                id:       s.id,
+                name:     s.name || `Store ${s.id?.slice(0, 6)}`,
+                settings: s.settings || {},
+            })));
+        } catch (err) {
+            console.error('[MerchantCatalog] loadStores exception:', err.message);
         }
     }, [merchantId]);
 
     useEffect(() => {
         loadRewards();
-        loadStoreCategories();
-    }, [loadRewards, loadStoreCategories]);
+        loadStores();
+    }, [loadRewards, loadStores]);
 
     const handleOpenCreate = () => { setEditingReward(null); setModalVisible(true); };
     const handleOpenEdit = (reward) => { setEditingReward(reward); setModalVisible(true); };
@@ -740,9 +835,14 @@ const MerchantCatalog = () => {
                 {/* Rewards list */}
                 {rewards.map((reward) => {
                     const Icon = typeIcon(reward.type);
+                    const storeName = reward.storeId
+                        ? (stores.find(s => s.id === reward.storeId)?.name || reward.storeId.slice(0, 8))
+                        : null;
                     return (
                         <Card key={reward.id} style={styles.rewardCard}>
-                            <View style={styles.rewardRow}>
+
+                            {/* ── Top: icon + name + eco badge + action buttons ── */}
+                            <View style={styles.rewardTop}>
                                 <View style={[styles.iconBox, !reward.isEnabled && styles.iconBoxDisabled]}>
                                     {reward.imageUrl ? (
                                         <Image source={{ uri: reward.imageUrl }} style={styles.rewardThumb} />
@@ -752,33 +852,16 @@ const MerchantCatalog = () => {
                                         <Icon size={22} color={reward.isEnabled ? '#6366f1' : '#94a3b8'} />
                                     )}
                                 </View>
-
-                                <View style={styles.rewardInfo}>
-                                    <View style={styles.rewardNameRow}>
-                                        <Text style={[styles.rewardName, !reward.isEnabled && styles.rewardNameDisabled]}>
-                                            {reward.name}
-                                        </Text>
-                                        {reward.isGreenReward && (
-                                            <View style={styles.greenBadge}>
-                                                <Text style={styles.greenBadgeText}>🌿 Eco</Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                    <View style={styles.metaRow}>
-                                        {reward.pointsPrice != null && (
-                                            <Badge color="indigo">{reward.pointsPrice} pts</Badge>
-                                        )}
-                                        <Text style={styles.stockText}>
-                                            Stock: {reward.stock >= 9999999 ? '∞' : reward.stock}
-                                        </Text>
-                                        {!reward.isEnabled && (
-                                            <View style={styles.disabledBadge}>
-                                                <Text style={styles.disabledBadgeText}>Disabled</Text>
-                                            </View>
-                                        )}
-                                    </View>
+                                <View style={styles.rewardTitleGroup}>
+                                    <Text style={[styles.rewardName, !reward.isEnabled && styles.rewardNameDisabled]} numberOfLines={2}>
+                                        {reward.name}
+                                    </Text>
+                                    {reward.isGreenReward && (
+                                        <View style={styles.greenBadge}>
+                                            <Text style={styles.greenBadgeText}>🌿 Eco</Text>
+                                        </View>
+                                    )}
                                 </View>
-
                                 <View style={styles.actions}>
                                     <TouchableOpacity
                                         style={styles.actionBtn}
@@ -802,6 +885,30 @@ const MerchantCatalog = () => {
                                     </TouchableOpacity>
                                 </View>
                             </View>
+
+                            {/* ── Middle: points / stock / status ── */}
+                            <View style={styles.rewardMeta}>
+                                {reward.pointsPrice != null && (
+                                    <Badge color="indigo">{reward.pointsPrice} pts</Badge>
+                                )}
+                                <Text style={styles.stockText}>
+                                    Stock: {reward.stock >= 9999999 ? '∞' : reward.stock}
+                                </Text>
+                                {!reward.isEnabled && (
+                                    <View style={styles.disabledBadge}>
+                                        <Text style={styles.disabledBadgeText}>Disabled</Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* ── Bottom: store name ── */}
+                            {storeName && (
+                                <>
+                                    <View style={styles.storeDivider} />
+                                    <Text style={styles.storeLabel}>🏪 {storeName}</Text>
+                                </>
+                            )}
+
                         </Card>
                     );
                 })}
@@ -820,7 +927,7 @@ const MerchantCatalog = () => {
                 visible={modalVisible}
                 reward={editingReward}
                 merchantId={merchantId}
-                storeCategories={storeCategories}
+                stores={stores}
                 onSave={handleSave}
                 onClose={() => setModalVisible(false)}
             />
@@ -843,6 +950,12 @@ const styles = StyleSheet.create({
     title: { fontSize: 20, fontWeight: '900', color: '#0f172a' },
     subtitle: { fontSize: 12, color: '#94a3b8', fontWeight: '600', marginTop: 2 },
     addIconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center' },
+
+    rewardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+    rewardTitleGroup: { flex: 1, gap: 4 },
+    rewardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    storeDivider: { height: 1, backgroundColor: '#f1f5f9', marginTop: 10, marginBottom: 6 },
+    storeLabel: { fontSize: 11, color: '#64748b', fontWeight: '600', marginTop: 2 },
 
     errorBanner: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

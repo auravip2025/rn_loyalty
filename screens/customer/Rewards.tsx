@@ -33,7 +33,11 @@ const placeholderColor = (id: string) =>
 
 const RewardCard: React.FC<{ item: RewardItem; balance: number; onRedeem: (r: any) => void }> = ({ item, balance, onRedeem }) => {
   const cost = item.pointsPrice ?? 0;
-  const locked = !item.isEnabled || item.stock === 0;
+  // null / undefined = unlimited (merchant chose no stock cap)
+  // 0               = depleted (all units sold)
+  // > 0             = available
+  const outOfStock = item.stock !== null && item.stock !== undefined && item.stock === 0;
+  const locked = !item.isEnabled || outOfStock;
   const canAfford = balance >= cost && cost > 0;
   const isBundle = item.type?.toUpperCase() === 'BUNDLE';
 

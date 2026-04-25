@@ -62,7 +62,7 @@ export function TabBar({ state, descriptors, navigation, activeTintColor = '#4f4
     });
 
     const currentRoute = state.routes[state.index].name;
-    const hiddenRoutes = ['offer-details', 'checkout', 'games', 'nearby', 'rewards'];
+    const hiddenRoutes = ['offer-details', 'checkout', 'games', 'nearby', 'rewards', 'payment-success'];
     const currentOptions = descriptors[state.routes[state.index].key]?.options;
     const isHiddenStyle = currentOptions?.tabBarStyle && 'display' in currentOptions.tabBarStyle && currentOptions.tabBarStyle.display === 'none';
 
