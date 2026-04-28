@@ -40,9 +40,18 @@ export default function MerchantLayout() {
             <Tabs.Screen
                 name="catalog"
                 options={{
-                    title: 'Catalog',
+                    title: 'Rewards',
                     tabBarIcon: ({ color }) => (
                         <IconSymbol size={26} name="gift.fill" color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="menu"
+                options={{
+                    title: 'Menu',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={26} name="fork.knife" color={color} />
                     ),
                 }}
             />

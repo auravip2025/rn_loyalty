@@ -34,6 +34,7 @@ const MAPPING = {
   'storefront': 'store',
   'gift.fill': 'card-giftcard',
   'qrcode.viewfinder': 'qr-code-scanner',
+  'fork.knife': 'restaurant',
 } as IconMapping;
 
 /**

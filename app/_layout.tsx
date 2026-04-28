@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import '../utils/debugFetch';
 
 import { AuthProvider } from '../contexts/AuthContext';
 import { ProgramProvider } from '../contexts/ProgramContext';

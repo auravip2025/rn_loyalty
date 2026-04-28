@@ -10,6 +10,7 @@ import {
     Search,
     Settings,
     Trash2,
+    Utensils,
     X,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -93,6 +94,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
         carbonOffsetKg: '',
         ecoDescription: '',
         storeId: '',
+        menuItemId: null,
         imageUri: null,
         imageChanged: false,
     });
@@ -101,6 +103,9 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
     const [fieldErrors, setFieldErrors] = useState({});
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
     const [storeSearch, setStoreSearch] = useState('');
+    const [menuItems, setMenuItems] = useState([]);
+    const [menuItemDropdownOpen, setMenuItemDropdownOpen] = useState(false);
+    const [menuItemSearch, setMenuItemSearch] = useState('');
     const scrollRef = useRef(null);
 
     // Auto-select the only store when there is exactly one; otherwise start blank
@@ -112,6 +117,8 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
             setFieldErrors({});
             setStoreDropdownOpen(false);
             setStoreSearch('');
+            setMenuItemDropdownOpen(false);
+            setMenuItemSearch('');
             setForm(reward ? {
                 name: reward.name || '',
                 description: reward.description || '',
@@ -124,6 +131,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                 carbonOffsetKg: reward.carbonOffsetKg ? String(reward.carbonOffsetKg) : '',
                 ecoDescription: reward.ecoDescription || '',
                 storeId: reward.storeId || defaultStoreId,
+                menuItemId: reward.menuItemId || null,
                 imageUri: reward.imageUrl || null,
                 imageChanged: false,
             } : {
@@ -138,11 +146,37 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                 carbonOffsetKg: '',
                 ecoDescription: '',
                 storeId: defaultStoreId,
+                menuItemId: null,
                 imageUri: null,
                 imageChanged: false,
             });
         }
     }, [visible, reward, stores]);
+
+    useEffect(() => {
+        const fetchMenuItems = async () => {
+            if (!form.storeId) {
+                setMenuItems([]);
+                return;
+            }
+            try {
+                const token = await AsyncStorage.getItem('@dandan_auth_token');
+                const res = await fetch(`${API_URL}/stores/${form.storeId}/menus`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const menus = await res.json();
+                    const allItems = menus.reduce((acc, menu) => {
+                        return [...acc, ...(menu.items || []).map(item => ({ ...item, menuName: menu.name }))];
+                    }, []);
+                    setMenuItems(allItems);
+                }
+            } catch (err) {
+                console.error('[RewardFormModal] fetchMenuItems error:', err);
+            }
+        };
+        if (visible) fetchMenuItems();
+    }, [form.storeId, visible]);
 
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -209,6 +243,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                 formData.append('isGreenReward', String(form.isGreenReward));
                 if (form.carbonOffsetKg) formData.append('carbonOffsetKg', String(parseFloat(form.carbonOffsetKg)));
                 if (form.ecoDescription.trim()) formData.append('ecoDescription', form.ecoDescription.trim());
+                if (form.menuItemId) formData.append('menuItemId', form.menuItemId);
                 const ext = form.imageUri.split('.').pop()?.toLowerCase() || 'jpg';
                 formData.append('image', {
                     uri: form.imageUri,
@@ -234,6 +269,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                     isGreenReward: form.isGreenReward,
                     carbonOffsetKg: form.carbonOffsetKg ? parseFloat(form.carbonOffsetKg) : 0,
                     ecoDescription: form.ecoDescription.trim() || null,
+                    menuItemId: form.menuItemId || null,
                 };
                 const url = isEdit
                     ? `${API_URL}/catalog/rewards/${reward.id}`
@@ -255,6 +291,13 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
         (s.name || '').toLowerCase().includes(storeSearch.toLowerCase())
     );
     const selectedStoreName = (stores || []).find(s => s.id === form.storeId)?.name || null;
+
+    const filteredMenuItems = menuItems.filter(item =>
+        (item.name || '').toLowerCase().includes(menuItemSearch.toLowerCase()) ||
+        (item.menuName || '').toLowerCase().includes(menuItemSearch.toLowerCase())
+    );
+    const selectedMenuItem = menuItems.find(item => item.id === form.menuItemId);
+    const selectedMenuItemName = selectedMenuItem ? `${selectedMenuItem.name} (${selectedMenuItem.menuName})` : null;
 
     const field = (label, key, opts = {}) => {
         const err = fieldErrors[key];
@@ -419,7 +462,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                                                             activeOpacity={0.75}
                                                             style={[modalStyles.ddItem, selected && modalStyles.ddItemSelected]}
                                                             onPress={() => {
-                                                                setForm(f => ({ ...f, storeId: s.id }));
+                                                                setForm(f => ({ ...f, storeId: s.id, menuItemId: null })); // Reset menu item if store changes
                                                                 setFieldErrors(e => ({ ...e, storeId: undefined }));
                                                                 setStoreDropdownOpen(false);
                                                                 setStoreSearch('');
@@ -443,6 +486,119 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                             {fieldErrors.storeId ? (
                                 <Text style={modalStyles.fieldError}>{fieldErrors.storeId}</Text>
                             ) : null}
+                        </View>
+
+                        {/* Menu Item picker — optional: link this reward to a specific menu item */}
+                        <View style={modalStyles.field}>
+                            <Text style={modalStyles.label}>Link to Menu Item (Optional)</Text>
+                            {form.storeId ? (
+                                <View>
+                                    {/* Trigger */}
+                                    <TouchableOpacity
+                                        activeOpacity={0.75}
+                                        style={[
+                                            modalStyles.ddTrigger,
+                                            menuItemDropdownOpen && modalStyles.ddTriggerOpen,
+                                        ]}
+                                        onPress={() => {
+                                            setMenuItemDropdownOpen(v => !v);
+                                            setMenuItemSearch('');
+                                        }}
+                                    >
+                                        <Text
+                                            style={selectedMenuItemName ? modalStyles.ddValue : modalStyles.ddPlaceholder}
+                                            numberOfLines={1}
+                                        >
+                                            {selectedMenuItemName || (menuItems.length === 0 ? 'No menu items found' : 'Select a menu item…')}
+                                        </Text>
+                                        <ChevronDown
+                                            size={16}
+                                            color="#64748b"
+                                            style={menuItemDropdownOpen && { transform: [{ rotate: '180deg' }] }}
+                                        />
+                                    </TouchableOpacity>
+
+                                    {/* Dropdown panel */}
+                                    {menuItemDropdownOpen && menuItems.length > 0 && (
+                                        <View style={modalStyles.ddPanel}>
+                                            {/* Search row */}
+                                            <View style={modalStyles.ddSearchRow}>
+                                                <Search size={14} color="#94a3b8" />
+                                                <TextInput
+                                                    style={modalStyles.ddSearchInput}
+                                                    placeholder="Search menu items…"
+                                                    placeholderTextColor="#94a3b8"
+                                                    value={menuItemSearch}
+                                                    onChangeText={setMenuItemSearch}
+                                                    autoFocus
+                                                />
+                                                {menuItemSearch.length > 0 && (
+                                                    <TouchableOpacity onPress={() => setMenuItemSearch('')}>
+                                                        <X size={14} color="#94a3b8" />
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
+                                            {/* Results */}
+                                            <ScrollView
+                                                style={modalStyles.ddList}
+                                                keyboardShouldPersistTaps="handled"
+                                                nestedScrollEnabled
+                                            >
+                                                {/* Option to clear selection */}
+                                                <TouchableOpacity
+                                                    activeOpacity={0.75}
+                                                    style={modalStyles.ddItem}
+                                                    onPress={() => {
+                                                        setForm(f => ({ ...f, menuItemId: null }));
+                                                        setMenuItemDropdownOpen(false);
+                                                    }}
+                                                >
+                                                    <Text style={[modalStyles.ddItemText, { color: '#94a3b8', fontStyle: 'italic' }]}>
+                                                        None (Don't link)
+                                                    </Text>
+                                                </TouchableOpacity>
+
+                                                {filteredMenuItems.length === 0 ? (
+                                                    <Text style={modalStyles.ddEmpty}>
+                                                        No items match "{menuItemSearch}"
+                                                    </Text>
+                                                ) : filteredMenuItems.map(item => {
+                                                    const selected = form.menuItemId === item.id;
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={item.id}
+                                                            activeOpacity={0.75}
+                                                            style={[modalStyles.ddItem, selected && modalStyles.ddItemSelected]}
+                                                            onPress={() => {
+                                                                setForm(f => ({ ...f, menuItemId: item.id }));
+                                                                setMenuItemDropdownOpen(false);
+                                                                setMenuItemSearch('');
+                                                            }}
+                                                        >
+                                                            <View style={{ flex: 1, marginRight: 8 }}>
+                                                                <Text
+                                                                    style={[modalStyles.ddItemText, selected && modalStyles.ddItemTextSelected]}
+                                                                    numberOfLines={1}
+                                                                >
+                                                                    {item.name}
+                                                                </Text>
+                                                                <Text style={{ fontSize: 10, color: '#94a3b8' }}>{item.menuName}</Text>
+                                                            </View>
+                                                            {selected && <Check size={14} color="#4f46e5" />}
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
+                                            </ScrollView>
+                                        </View>
+                                    )}
+                                </View>
+                            ) : (
+                                <View style={{ backgroundColor: '#f1f5f9', borderRadius: 10, padding: 12, marginTop: 4 }}>
+                                    <Text style={{ fontSize: 12, color: '#64748b' }}>
+                                        Select a store first to see available menu items.
+                                    </Text>
+                                </View>
+                            )}
                         </View>
 
                         {/* Type toggle */}
