@@ -41,6 +41,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
+import { getRewardImage } from '../../utils/rewardImages';
+import { GET_NOTIFICATIONS, useQuery } from '../../api/client';
 
 interface Offer {
   id: string | number;
@@ -266,13 +268,20 @@ const OfferCardItem: React.FC<OfferCardItemProps> = ({ offer, index, onPress }) 
     <Animated.View style={animStyle}>
       <TouchableOpacity onPress={onPress} style={styles.offerCard} activeOpacity={0.88}>
 
-        {/* LEFT — square image */}
+        {/* LEFT — square image: remote URL → local asset → placeholder */}
         <View style={styles.offerImageWrap}>
           {offer.image
             ? <Image source={{ uri: offer.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            : <View style={[StyleSheet.absoluteFill, styles.offerImagePlaceholder]}>
-                <Zap size={28} color="rgba(255,255,255,0.3)" fill="rgba(255,255,255,0.3)" />
-              </View>
+            : (() => {
+                const localImg = getRewardImage(offer.title);
+                return localImg
+                  // Local require() assets must use explicit pixel dimensions —
+                  // absoluteFill renders them at their natural (huge) resolution.
+                  ? <Image source={localImg} style={styles.offerLocalImage} resizeMode="cover" />
+                  : <View style={[StyleSheet.absoluteFill, styles.offerImagePlaceholder]}>
+                      <Zap size={28} color="rgba(255,255,255,0.3)" fill="rgba(255,255,255,0.3)" />
+                    </View>;
+              })()
           }
           {/* Hot flame overlay on image */}
           {hot && (
@@ -443,6 +452,12 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
 
+  // Unread notification count — drives the badge on the bell icon
+  const { data: notifData } = useQuery(GET_NOTIFICATIONS, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const unreadCount: number = (notifData?.notifications || []).filter((n: any) => !n.read).length;
+
   const scrollViewRef = useRef<ScrollView>(null);
   const mainScrollViewRef = useRef<any>(null);
   const merchantScrollRef = useRef<ScrollView>(null);
@@ -495,12 +510,18 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
             <Text style={styles.greeting}>Good Morning</Text>
             <Text style={styles.userName}>Alex Johnson</Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.notificationButton}
             onPress={() => router.push('/(customer)/notifications' as any)}
           >
             <Bell size={20} color="#475569" />
-            <View style={styles.notificationBadge} />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                {unreadCount < 10 && (
+                  <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                )}
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -776,14 +797,23 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 10,
-    height: 10,
+    top: 8,
+    right: 8,
+    minWidth: 16,
+    height: 16,
     backgroundColor: '#f43f5e',
-    borderRadius: 5,
-    borderWidth: 2,
+    borderRadius: 8,
+    borderWidth: 1.5,
     borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  notificationBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#ffffff',
+    lineHeight: 11,
   },
   membershipCard: {
     width: '100%',
@@ -958,6 +988,12 @@ const styles = StyleSheet.create({
     height: 112,
     position: 'relative',
     overflow: 'hidden',
+  },
+  // Local require() assets: explicit px dimensions so RN scales them down
+  // instead of rendering at natural resolution then overflowing the container.
+  offerLocalImage: {
+    width: 112,
+    height: 112,
   },
   offerImagePlaceholder: {
     backgroundColor: '#1e293b',

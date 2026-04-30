@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { useWallet } from '../../contexts/WalletContext';
 import Rewards from '../../screens/customer/Rewards';
@@ -6,10 +6,13 @@ import Rewards from '../../screens/customer/Rewards';
 export default function RewardsPage() {
     const router = useRouter();
     const { balance } = useWallet() as any;
+    // Optional: campaign notifications deep-link here with ?merchantId=xxx
+    const { merchantId } = useLocalSearchParams<{ merchantId?: string }>();
 
     return (
         <Rewards
             balance={balance}
+            merchantId={merchantId || undefined}
             onBack={() => router.back()}
             onRedeem={(reward: any) => {
                 // Always pass the real dollar price so the order summary shows it.

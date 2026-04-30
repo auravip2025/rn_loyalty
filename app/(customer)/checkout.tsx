@@ -40,6 +40,8 @@ export default function CheckoutPage() {
     // NOTE: do NOT use this to replace the view — that would unmount CustomerCheckout
     // and kill the in-flight await. Use it only to disable the Pay button.
     const [confirming, setConfirming] = useState(false);
+    // True while a cancelled reservation is being released — blocks re-tap until done
+    const [releasing, setReleasing] = useState(false);
 
     // Simulated payment
     const [simPayment, setSimPayment] = useState<{ cashRequired: number; redemptionId: string } | null>(null);
@@ -130,12 +132,38 @@ export default function CheckoutPage() {
         }
     };
 
-    const onSimPayCancel = () => {
+    const onSimPayCancel = async () => {
         setShowSimPay(false);
         rejectRef.current?.(new Error('Payment cancelled'));
         rejectRef.current  = null;
         resolveRef.current = null;
+
+        // Release the token reservation so the user's balance is restored.
+        // We await this and then refresh the balance so the Pay button stays
+        // disabled until the reservation is fully released — otherwise a quick
+        // re-tap hits the wallet while the old reservation is still active and
+        // gets "Insufficient available balance".
+        const idToRelease = simPayment?.redemptionId;
         setSimPayment(null);
+        if (idToRelease) {
+            setReleasing(true);
+            try {
+                const token = await AsyncStorage.getItem('@dandan_auth_token');
+                await fetch(`${API_URL}/rewards/redemptions/${idToRelease}/cancel-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({ reason: 'User cancelled payment' }),
+                });
+            } catch (err: any) {
+                console.warn('[Checkout] cancel-payment release failed:', err.message);
+            } finally {
+                refreshBalance?.();   // sync wallet balance before re-enabling Pay
+                setReleasing(false);
+            }
+        }
     };
 
     // ── Render guards ───────────────────────────────────────────────────────
@@ -160,7 +188,7 @@ export default function CheckoutPage() {
                 balance={balance ?? 0}
                 cashRequired={0}
                 paymentType={undefined}
-                confirming={confirming}
+                confirming={confirming || releasing}
                 onConfirm={async (pointsUsed: number, merchant: string) => {
                     if (rewardId) {
                         return handleRewardConfirm(pointsUsed);

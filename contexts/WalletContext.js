@@ -9,7 +9,15 @@ export const useWallet = () => useContext(WalletContext);
 
 export const WalletProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  const { data, loading, refetch } = useQuery(GET_WALLET, { skip: !isAuthenticated });
+  // cache-and-network: returns cached data immediately (no skeleton flash on
+  // tab focus), then silently re-fetches from the network and updates the UI
+  // when fresh data arrives. This prevents the race where the user switches to
+  // the wallet tab right after a redemption and sees an empty activity log
+  // because the initial refetch fires before the backend write has committed.
+  const { data, loading, refetch } = useQuery(GET_WALLET, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
   const [deductMutation] = useMutation(DEDUCT_POINTS);
   const [earnMutation] = useMutation(EARN_POINTS);
 

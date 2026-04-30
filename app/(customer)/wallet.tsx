@@ -1,21 +1,26 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useWallet } from '../../contexts/WalletContext';
 import CustomerWallet from '../../screens/customer/CustomerWallet';
 
 export default function WalletPage() {
-    const { balance, transactions } = useWallet();
+    const { balance, transactions, loading, refetch } = useWallet() as any;
     const router = useRouter();
 
-    const handleOpenPayment = () => {
-        router.push('/(customer)/scan');
-    };
+    // Refresh every time the tab gains focus so balances and transactions stay fresh
+    useFocusEffect(
+        useCallback(() => {
+            refetch?.();
+        }, [])
+    );
 
     return (
         <CustomerWallet
             balance={balance}
             transactions={transactions}
-            onOpenPayment={handleOpenPayment}
+            loading={loading}
+            onOpenPayment={() => router.push('/(customer)/scan')}
         />
     );
 }

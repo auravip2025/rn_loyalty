@@ -17,8 +17,9 @@ import {
   Trash2,
   Trophy,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
@@ -29,7 +30,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
+import { useAuth } from '../../contexts/AuthContext';
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 // ─── Event type config ────────────────────────────────────────────────────────
 const EVENT_TYPES = [
@@ -58,15 +63,25 @@ const CHANNELS = [
 
 // ─── Campaign Card ─────────────────────────────────────────────────────────────
 const CampaignCard = ({ campaign, onEdit, onDelete, onToggle }) => {
-  const et = eventTypeFor(campaign.eventType);
+  // Backend campaigns have `status` (DRAFT/ACTIVE/ENDED); local mock had `isActive`
+  const isActive = campaign.isActive !== undefined
+    ? campaign.isActive
+    : campaign.status === 'ACTIVE';
+  const et = eventTypeFor(campaign.eventType || 'custom');
   const Icon = et.icon;
   const now = new Date();
-  const start = new Date(campaign.startDate);
-  const end = new Date(campaign.endDate);
-  const isLive = campaign.isActive && now >= start && now <= end;
-  const isScheduled = campaign.isActive && now < start;
-  const statusLabel = isLive ? 'Live' : isScheduled ? 'Scheduled' : campaign.isActive ? 'Ended' : 'Paused';
-  const statusColor = isLive ? '#10b981' : isScheduled ? '#6366f1' : '#94a3b8';
+  const start = campaign.startDate ? new Date(campaign.startDate) : null;
+  const end   = campaign.endDate   ? new Date(campaign.endDate)   : null;
+  const isLive = isActive && start && end && now >= start && now <= end;
+  const isScheduled = isActive && start && now < start;
+  const statusLabel = campaign.status === 'ACTIVE'
+    ? (isLive ? 'Live' : 'Active')
+    : campaign.status === 'ENDED' ? 'Ended'
+    : campaign.status === 'DRAFT' ? 'Draft'
+    : isLive ? 'Live' : isScheduled ? 'Scheduled' : isActive ? 'Active' : 'Paused';
+  const statusColor = (statusLabel === 'Live' || statusLabel === 'Active') ? '#10b981'
+    : statusLabel === 'Scheduled' || statusLabel === 'Draft' ? '#6366f1'
+    : '#94a3b8';
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onEdit(campaign)} activeOpacity={0.8}>
@@ -80,11 +95,15 @@ const CampaignCard = ({ campaign, onEdit, onDelete, onToggle }) => {
             <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
           </View>
         </View>
-        <Text style={styles.cardMeta}>{et.label}  ·  {campaign.startDate} → {campaign.endDate}</Text>
-        {campaign.reward ? (
+        <Text style={styles.cardMeta}>
+          {et.label}  ·  {campaign.startDate ? campaign.startDate.toString().slice(0,10) : '—'} → {campaign.endDate ? campaign.endDate.toString().slice(0,10) : '—'}
+        </Text>
+        {(campaign.reward || campaign.description) ? (
           <View style={styles.rewardChip}>
             <Gift size={10} color="#6366f1" />
-            <Text style={styles.rewardChipText}>{campaign.reward}</Text>
+            <Text style={styles.rewardChipText} numberOfLines={1}>
+              {campaign.reward || campaign.description}
+            </Text>
           </View>
         ) : null}
         {(campaign.channels || []).length > 0 && (
@@ -125,13 +144,14 @@ const CampaignForm = ({ campaign, onSave, onBack }) => {
     name: campaign?.name || '',
     eventType: campaign?.eventType || 'sports',
     reward: campaign?.reward || '',
+    description: campaign?.description || '',
     startDate: campaign?.startDate || '',
     endDate: campaign?.endDate || '',
     isActive: campaign?.isActive !== false,
     channels: campaign?.channels || ['push'],
   });
   const [error, setError] = useState(null);
-  const [broadcasting, setBroadcasting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const toggleChannel = (key) => {
@@ -139,26 +159,30 @@ const CampaignForm = ({ campaign, onSave, onBack }) => {
     set('channels', existing.includes(key) ? existing.filter(k => k !== key) : [...existing, key]);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) { setError('Campaign name is required.'); return; }
-    if (!form.startDate.trim() || !form.endDate.trim()) { setError('Start and end dates are required.'); return; }
-    if ((form.channels || []).length === 0) { setError('Select at least one broadcast channel.'); return; }
     setError(null);
-    onSave({ ...campaign, ...form, id: campaign?.id || Date.now().toString() });
+    setSaving(true);
+    try {
+      await onSave({ ...campaign, ...form }, false /* draft */);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleBroadcast = () => {
-    if ((form.channels || []).length === 0) { setError('Select at least one broadcast channel.'); return; }
+  const handleBroadcast = async () => {
+    if (!form.name.trim()) { setError('Campaign name is required.'); return; }
     setError(null);
-    setBroadcasting(true);
-    setTimeout(() => {
-      setBroadcasting(false);
-      Alert.alert(
-        'Broadcast Sent! 🎉',
-        `Your campaign "${form.name}" has been sent via ${(form.channels || []).join(', ').toUpperCase()}.`,
-        [{ text: 'Great!' }]
-      );
-    }, 1000);
+    setSaving(true);
+    try {
+      await onSave({ ...campaign, ...form }, true /* launch now */);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const selectedType = eventTypeFor(form.eventType);
@@ -223,6 +247,17 @@ const CampaignForm = ({ campaign, onSave, onBack }) => {
           placeholderTextColor="#94a3b8"
           value={form.reward}
           onChangeText={v => set('reward', v)}
+        />
+
+        {/* Description */}
+        <Text style={styles.fieldLabel}>Campaign Message</Text>
+        <TextInput
+          style={[styles.input, { minHeight: 72, textAlignVertical: 'top' }]}
+          placeholder="What will customers see in their notification? e.g. Join us for the Premier League Final — enjoy 2x points on all orders!"
+          placeholderTextColor="#94a3b8"
+          multiline
+          value={form.description}
+          onChangeText={v => set('description', v)}
         />
 
         {/* Date range */}
@@ -290,20 +325,22 @@ const CampaignForm = ({ campaign, onSave, onBack }) => {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {/* Broadcast now button */}
+        {/* Broadcast now button — creates campaign AND sends notifications immediately */}
         {!isEdit && (
           <TouchableOpacity
-            style={[styles.broadcastBtn, broadcasting && { opacity: 0.7 }]}
+            style={[styles.broadcastBtn, saving && { opacity: 0.6 }]}
             onPress={handleBroadcast}
-            disabled={broadcasting}
+            disabled={saving}
           >
-            <Send size={16} color="#fff" />
-            <Text style={styles.broadcastBtnText}>{broadcasting ? 'Sending…' : 'Broadcast Now'}</Text>
+            {saving
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Send size={16} color="#fff" />}
+            <Text style={styles.broadcastBtnText}>{saving ? 'Sending…' : 'Broadcast Now'}</Text>
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Launch Campaign'}</Text>
+        <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+          <Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Save as Draft'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -312,33 +349,120 @@ const CampaignForm = ({ campaign, onSave, onBack }) => {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 const MerchantCampaigns = ({ visible, onClose }) => {
+  const { merchantProfile } = useAuth();
+  const merchantId = merchantProfile?.id;
+
   const [view, setView] = useState('list'); // 'list' | 'form'
   const [editingCampaign, setEditingCampaign] = useState(null);
-  const [campaigns, setCampaigns] = useState([
-    {
-      id: '1', name: 'Premier League Final', eventType: 'sports',
-      reward: 'Free Pint + 2x Points', startDate: '2026-05-16', endDate: '2026-05-16', isActive: true,
-    },
-    {
-      id: '2', name: 'Birthday Month Special', eventType: 'birthday',
-      reward: 'Free Dessert', startDate: '2026-04-01', endDate: '2026-04-30', isActive: true,
-    },
-  ]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
 
-  const handleSave = (saved) => {
-    setCampaigns(prev =>
-      prev.find(c => c.id === saved.id)
-        ? prev.map(c => c.id === saved.id ? saved : c)
-        : [...prev, saved]
-    );
-    setView('list');
-    setEditingCampaign(null);
+  // Fetch campaigns from campaign-service whenever the modal opens or after save
+  const fetchCampaigns = useCallback(async () => {
+    if (!merchantId) return;
+    setLoadingList(true);
+    try {
+      const token = await AsyncStorage.getItem('@dandan_auth_token');
+      const res = await fetch(`${API_BASE}/campaigns/merchant/${merchantId}/campaigns`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCampaigns(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.warn('[MerchantCampaigns] fetch error:', err.message);
+    } finally {
+      setLoadingList(false);
+    }
+  }, [merchantId]);
+
+  useEffect(() => {
+    if (visible) fetchCampaigns();
+  }, [visible, fetchCampaigns]);
+
+  // handleSave: create campaign + immediately launch it (= broadcast)
+  const handleSave = async (formData, shouldLaunch = false) => {
+    if (!merchantId) {
+      Alert.alert('Error', 'Merchant profile not loaded.');
+      return;
+    }
+    try {
+      const token = await AsyncStorage.getItem('@dandan_auth_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '',
+      };
+
+      // Determine campaign type from eventType
+      const typeMap = {
+        sports:   'SPORTS_EVENT',
+        birthday: 'BIRTHDAY_SPECIAL',
+        music:    'SPECIAL_EVENT',
+        festival: 'FESTIVAL',
+        promo:    'SPECIAL_EVENT',
+        custom:   'SPECIAL_EVENT',
+      };
+
+      const body = {
+        name:            formData.name,
+        type:            typeMap[formData.eventType] || 'SPECIAL_EVENT',
+        description:     formData.reward
+          ? `${formData.reward}${formData.description ? ' — ' + formData.description : ''}`
+          : formData.description || formData.name,
+        startDate:       formData.startDate || new Date().toISOString(),
+        endDate:         formData.endDate   || new Date(Date.now() + 86400000 * 7).toISOString(),
+        audienceCriteria: {},
+      };
+
+      // 1. Create the campaign
+      const createRes = await fetch(
+        `${API_BASE}/campaigns/merchant/${merchantId}/campaigns`,
+        { method: 'POST', headers, body: JSON.stringify(body) }
+      );
+
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}));
+        throw new Error(err.error || `Create failed (${createRes.status})`);
+      }
+
+      const created = await createRes.json();
+
+      // 2. Launch it immediately (fans out in-app notifications to all audience members)
+      if (shouldLaunch) {
+        const launchRes = await fetch(
+          `${API_BASE}/campaigns/merchant/${merchantId}/campaigns/${created.id}/launch`,
+          { method: 'POST', headers }
+        );
+        if (!launchRes.ok) {
+          const err = await launchRes.json().catch(() => ({}));
+          console.warn('[MerchantCampaigns] launch error:', err.error);
+          // Non-fatal — campaign was created, just not launched
+        }
+      }
+
+      await fetchCampaigns();
+      setView('list');
+      setEditingCampaign(null);
+
+      Alert.alert(
+        shouldLaunch ? 'Campaign Launched! 🎉' : 'Campaign Saved',
+        shouldLaunch
+          ? `"${formData.name}" is live. Notifications are being sent to your customers.`
+          : `"${formData.name}" has been saved as a draft.`,
+        [{ text: 'OK' }]
+      );
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Something went wrong. Please try again.');
+    }
   };
 
   const handleDelete = (id) => {
     Alert.alert('Delete Campaign', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => setCampaigns(prev => prev.filter(c => c.id !== id)) },
+      { text: 'Delete', style: 'destructive', onPress: () =>
+          setCampaigns(prev => prev.filter(c => c.id !== id))
+      },
     ]);
   };
 
@@ -391,7 +515,11 @@ const MerchantCampaigns = ({ visible, onClose }) => {
               </Text>
             </View>
 
-            {campaigns.length === 0 ? (
+            {loadingList ? (
+              <View style={styles.empty}>
+                <ActivityIndicator size="large" color="#6366f1" />
+              </View>
+            ) : campaigns.length === 0 ? (
               <View style={styles.empty}>
                 <Megaphone size={40} color="#cbd5e1" />
                 <Text style={styles.emptyTitle}>No campaigns yet</Text>

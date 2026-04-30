@@ -6,16 +6,17 @@ interface PaymentBreakdownProps {
   pointsReserved: number;
   cashRequired: number;
   type: 'pure_points' | 'hybrid' | 'cash_only';
+  /** SGD value of one token. Derived from reward price/points ratio. */
+  tokenRate?: number;
 }
-
-const TOKENS_PER_SGD = 500;
 
 const PaymentBreakdown: React.FC<PaymentBreakdownProps> = ({
   pointsReserved,
   cashRequired,
   type,
+  tokenRate = 1 / 500,
 }) => {
-  const tokensValue = parseFloat((pointsReserved / TOKENS_PER_SGD).toFixed(2));
+  const tokensValue = parseFloat((pointsReserved * tokenRate).toFixed(2));
 
   return (
     <View style={styles.container}>

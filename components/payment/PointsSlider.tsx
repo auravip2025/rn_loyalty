@@ -13,10 +13,11 @@ interface PointsSliderProps {
   max: number;           // min(balance, rewardPointsCost)
   step?: number;         // snap increment, default 50
   cashRequired: number;  // computed SGD amount for display
+  /** SGD value of one token. Derived from reward price/points ratio.
+   *  Defaults to 1/500 (platform standard: 500 tokens = $1). */
+  tokenRate?: number;
   onChange: (value: number) => void;
 }
-
-const TOKENS_PER_SGD = 500;
 
 const PointsSlider: React.FC<PointsSliderProps> = ({
   value,
@@ -24,6 +25,7 @@ const PointsSlider: React.FC<PointsSliderProps> = ({
   max,
   step = 50,
   cashRequired,
+  tokenRate = 1 / 500,
   onChange,
 }) => {
   const trackWidth = useRef(0);
@@ -63,7 +65,7 @@ const PointsSlider: React.FC<PointsSliderProps> = ({
       ? 'hybrid'
       : 'cash_only';
 
-  const pointsValue = parseFloat((value / TOKENS_PER_SGD).toFixed(2));
+  const pointsValue = parseFloat((value * tokenRate).toFixed(2));
 
   return (
     <View style={styles.container}>

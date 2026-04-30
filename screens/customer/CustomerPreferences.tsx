@@ -108,7 +108,7 @@ export default function CustomerPreferences() {
                 if (user?.email) {
                     await loginWithOtp(user.email, 'customer', false, user.id);
                 }
-                router.replace('/(customer)/home');
+                router.navigate('/(customer)/home' as any);
             }
         } catch (error: any) {
             console.error('Preference Save Error:', error);
@@ -125,7 +125,7 @@ export default function CustomerPreferences() {
         if (user?.email) {
             await loginWithOtp(user.email, 'customer', false, user.id);
         }
-        router.replace('/(customer)/home');
+        router.navigate('/(customer)/home' as any);
     };
 
     if (loadingPrefs) {

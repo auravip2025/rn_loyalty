@@ -101,11 +101,17 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
 
   const maxPoints = Math.min(balance, pointsCost);
 
-  // For reward redemptions without a server-computed breakdown, compute live from slider
-  const TOKENS_PER_SGD = 500;
+  // For reward redemptions: derive the actual SGD-per-token rate from the
+  // reward's own price/points ratio (e.g. $6 ÷ 250 tokens = $0.024/token).
+  // This means sliding to 0 tokens shows the full price ($6), not a fixed
+  // platform rate (which was wrong: 250/500 = $0.50 instead of $6).
   const liveIsReward = !!pointsCostOverride;
+  const tokenToSgdRate = (liveIsReward && pointsCost > 0 && totalAmount > 0)
+    ? totalAmount / pointsCost           // reward-specific rate
+    : 1 / POINTS_PER_DOLLAR;            // standard rate ($0.01/token)
+
   const liveCashRequired = liveIsReward
-    ? Math.max(0, parseFloat(((pointsCost - pointsToUse) / TOKENS_PER_SGD).toFixed(2)))
+    ? Math.max(0, parseFloat(((pointsCost - pointsToUse) * tokenToSgdRate).toFixed(2)))
     : cashRequired;
   const livePaymentType: 'pure_points' | 'hybrid' | 'cash_only' | undefined = liveIsReward
     ? (pointsToUse >= pointsCost ? 'pure_points' : pointsToUse > 0 ? 'hybrid' : 'cash_only')
@@ -159,8 +165,12 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
         setShowQr(true);
       }
     } catch (err: any) {
+      // 'Payment cancelled' is user-initiated (closed the payment modal) — not an error
+      if (err.message === 'Payment cancelled') {
+        console.log('[Checkout] payment modal dismissed by user');
+        return;
+      }
       console.error('[Checkout] confirm failed:', err.message);
-      // Surface the error — in production wire this to an error state / toast
       alert(err.message || 'Payment failed. Please try again.');
     }
   };
@@ -307,8 +317,19 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
           </View>
         </View>
 
-        {/* Flow 3: Payment Breakdown — shown for hybrid/cash_only */}
-        {paymentType && paymentType !== 'pure_points' && cashRequired > 0 && (
+        {/* Payment Breakdown — live reward calculation (slider-driven) */}
+        {liveIsReward && livePaymentType !== 'pure_points' && liveCashRequired > 0 && (
+          <View style={styles.section}>
+            <PaymentBreakdown
+              pointsReserved={pointsToUse}
+              cashRequired={liveCashRequired}
+              type={livePaymentType!}
+              tokenRate={tokenToSgdRate}
+            />
+          </View>
+        )}
+        {/* Payment Breakdown — server-computed (Flow 3 non-reward) */}
+        {!liveIsReward && paymentType && paymentType !== 'pure_points' && cashRequired > 0 && (
           <View style={styles.section}>
             <PaymentBreakdown
               pointsReserved={pointsToUse}
@@ -328,6 +349,7 @@ const CustomerCheckout: React.FC<CustomerCheckoutProps> = ({
               max={maxPoints}
               step={50}
               cashRequired={effectiveCashRequired}
+              tokenRate={tokenToSgdRate}
               onChange={setPointsToUse}
             />
             <View style={[styles.breakdownRow, { marginTop: 10 }]}>

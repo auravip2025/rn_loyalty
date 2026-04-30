@@ -1,5 +1,6 @@
-import { ArrowLeft, Gift, Tag, Zap } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { ArrowLeft, CheckCircle, Gift, Tag, Zap } from 'lucide-react-native';
+import React from 'react';
+import { getRewardImage } from '../../utils/rewardImages';
 import {
   Alert,
   Dimensions,
@@ -15,13 +16,17 @@ import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
 const { height } = Dimensions.get('window');
 
-const OfferDetails = ({ offer, onBack, onCheckout }) => {
+const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
   const insets = useSafeAreaInsets();
-  const [redeemed, setRedeemed] = useState(false);
+  // `redeemed` is a controlled prop, not local state. The page component
+  // (offer-details.tsx) owns it so it resets to false on every fresh navigation
+  // into this screen (stack push re-mounts), eliminating the stale-state bug
+  // where offer A's "already redeemed" state leaked into offer B.
 
   if (!offer) return null;
 
-  const hasImage  = !!offer.image;
+  const localImage = getRewardImage(offer.title);
+  const hasImage   = !!offer.image || !!localImage;
   const hasPoints = !!offer.discount; // e.g. "200 pts"
   const hasPrice  = offer.price != null && offer.price > 0;
 
@@ -34,7 +39,6 @@ const OfferDetails = ({ offer, onBack, onCheckout }) => {
         {
           text: 'Redeem',
           onPress: () => {
-            setRedeemed(true);
             if (onCheckout) onCheckout(offer.price || 0);
           },
         },
@@ -58,8 +62,10 @@ const OfferDetails = ({ offer, onBack, onCheckout }) => {
       >
         {/* Hero */}
         <View style={styles.hero}>
-          {hasImage ? (
-            <Image source={{ uri: offer.image }} style={styles.heroImage} />
+          {offer.image ? (
+            <Image source={{ uri: offer.image }} style={styles.heroImage} resizeMode="cover" />
+          ) : localImage ? (
+            <Image source={localImage} style={styles.heroImage} resizeMode="cover" />
           ) : (
             <View style={[styles.heroImage, styles.heroPlaceholder]}>
               <Gift size={64} color="rgba(255,255,255,0.2)" />
@@ -80,6 +86,16 @@ const OfferDetails = ({ offer, onBack, onCheckout }) => {
         {/* Content sheet */}
         <View style={styles.sheet}>
           <View style={styles.sheetContent}>
+
+            {/* Redeemed banner */}
+            {redeemed && (
+              <View style={styles.redeemedBanner}>
+                <CheckCircle size={18} color="#059669" />
+                <Text style={styles.redeemedText}>
+                  Redemption sent to checkout!
+                </Text>
+              </View>
+            )}
 
             {/* Description */}
             {!!offer.desc && (
@@ -118,12 +134,6 @@ const OfferDetails = ({ offer, onBack, onCheckout }) => {
               </View>
             )}
 
-            {/* Redeemed confirmation */}
-            {redeemed && (
-              <View style={styles.redeemedBanner}>
-                <Text style={styles.redeemedText}>✓ Reward redeemed! Show this to the merchant.</Text>
-              </View>
-            )}
           </View>
         </View>
       </ScrollView>
@@ -142,6 +152,7 @@ const OfferDetails = ({ offer, onBack, onCheckout }) => {
           style={[styles.redeemBtn, redeemed && styles.redeemBtnDone]}
           onPress={redeemed ? onBack : handleRedeem}
         >
+          {redeemed && <CheckCircle size={18} color="#ffffff" />}
           <Text style={styles.redeemBtnText}>
             {redeemed ? 'Done' : hasPoints ? `Redeem for ${offer.discount}` : 'Redeem Reward'}
           </Text>
@@ -284,17 +295,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
   },
-  redeemedBanner: {
-    backgroundColor: '#dcfce7',
-    borderRadius: 12,
-    padding: 16,
-  },
-  redeemedText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#16a34a',
-    textAlign: 'center',
-  },
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -319,8 +319,27 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   redeemBtnDone: {
-    backgroundColor: '#10b981',
-    shadowColor: '#10b981',
+    backgroundColor: '#059669',
+    shadowColor: '#059669',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  redeemedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#ecfdf5',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  redeemedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#059669',
+    flex: 1,
   },
   redeemBtnText: {
     fontSize: 16,

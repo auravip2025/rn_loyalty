@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { ArrowLeft, Gift, Lock, Package } from 'lucide-react-native';
+import { ArrowLeft, Gift, Lock, Package, Zap } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import Button from '../../components/old_app/common/Button';
 import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
+import { getRewardImage } from '../../utils/rewardImages';
 
 // Shape returned by the gateway's `rewards` resolver (maps to RewardItem)
 interface RewardItem {
@@ -25,6 +26,9 @@ interface RewardsProps {
   onBack: () => void;
   balance: number;
   onRedeem: (reward: any) => void;
+  /** When set (deep-linked from a campaign notification) only this merchant's
+   *  rewards are shown and a campaign banner is displayed at the top.        */
+  merchantId?: string;
 }
 
 const PLACEHOLDER_COLORS = ['#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed'];
@@ -48,16 +52,21 @@ const RewardCard: React.FC<{ item: RewardItem; balance: number; onRedeem: (r: an
           <Text style={styles.bundleBadgeText}>BUNDLE</Text>
         </View>
       )}
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.rewardImage} />
-      ) : (
-        <View style={[styles.rewardImage, styles.imagePlaceholder, { backgroundColor: placeholderColor(item.id) }]}>
-          {isBundle
-            ? <Package size={28} color="rgba(255,255,255,0.8)" />
-            : <Gift size={28} color="rgba(255,255,255,0.8)" />
-          }
-        </View>
-      )}
+      {/* Prefer remote imageUrl → local asset match → coloured placeholder */}
+      {item.imageUrl
+        ? <Image source={{ uri: item.imageUrl }} style={styles.rewardImage} resizeMode="cover" />
+        : (() => {
+            const localImg = getRewardImage(item.name);
+            return localImg
+              ? <Image source={localImg} style={styles.rewardImage} resizeMode="cover" />
+              : <View style={[styles.rewardImage, styles.imagePlaceholder, { backgroundColor: placeholderColor(item.id) }]}>
+                  {isBundle
+                    ? <Package size={28} color="rgba(255,255,255,0.8)" />
+                    : <Gift size={28} color="rgba(255,255,255,0.8)" />
+                  }
+                </View>;
+          })()
+      }
       <View style={styles.rewardContent}>
         <Text style={styles.rewardTitle} numberOfLines={2}>{item.name}</Text>
         {item.description ? (
@@ -92,17 +101,15 @@ const RewardCard: React.FC<{ item: RewardItem; balance: number; onRedeem: (r: an
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 
-const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
-    const [rewards, setRewards] = useState<RewardItem[]>([]);
+const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem, merchantId }) => {
+    const [allRewards, setAllRewards] = useState<RewardItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useFocusEffect(useCallback(() => {
         let cancelled = false;
         const load = async () => {
-            // Always wipe stale data before fetching so nothing from a previous
-            // session or Fast Refresh cycle can bleed through.
-            setRewards([]);
+            setAllRewards([]);
             setError(null);
             setLoading(true);
             try {
@@ -114,7 +121,7 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
                 const json = await res.json();
                 if (!cancelled) {
                     const items = Array.isArray(json) ? json : (json.rewards || []);
-                    setRewards(items.filter((r: RewardItem) => r.isEnabled));
+                    setAllRewards(items.filter((r: RewardItem) => r.isEnabled));
                 }
             } catch (err: any) {
                 console.warn('[Rewards] fetch failed:', err);
@@ -125,10 +132,21 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
         };
         load();
         return () => { cancelled = true; };
-    }, []));
+    }, [merchantId]));
+
+    // When deep-linked from a campaign notification, show only that merchant's items
+    const rewards = merchantId
+        ? allRewards.filter(r => r.merchantId === merchantId)
+        : allRewards;
 
     const bundles = rewards.filter(r => r.type?.toUpperCase() === 'BUNDLE');
     const singles = rewards.filter(r => r.type?.toUpperCase() !== 'BUNDLE');
+
+    // Determine title: when filtering by merchant, use the merchant name from
+    // the first matching reward (saves an extra service call).
+    const merchantName = merchantId && rewards.length > 0
+        ? (rewards[0] as any).merchantName || (rewards[0] as any).storeName || null
+        : null;
 
     return (
         <ScreenWrapper paddingHorizontal={0}>
@@ -136,7 +154,9 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
                 <TouchableOpacity onPress={onBack} style={styles.backButton}>
                     <ArrowLeft size={20} color="#0f172a" />
                 </TouchableOpacity>
-                <Text style={styles.title}>Rewards</Text>
+                <Text style={styles.title}>
+                    {merchantId ? 'Campaign Rewards' : 'Rewards'}
+                </Text>
             </View>
 
             <ScrollView
@@ -144,6 +164,23 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
                 contentContainerStyle={[styles.contentContainer, { paddingBottom: 40 }]}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Campaign offer banner — shown only when deep-linked */}
+                {!!merchantId && (
+                    <View style={styles.campaignBanner}>
+                        <View style={styles.campaignBannerIcon}>
+                            <Zap size={18} color="#d97706" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.campaignBannerTitle}>Special Campaign Offer</Text>
+                            <Text style={styles.campaignBannerSub}>
+                                {merchantName
+                                    ? `Exclusive rewards from ${merchantName}`
+                                    : 'Tap any reward below to redeem'}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
                 <View style={styles.balanceHeader}>
                     <Text style={styles.balanceLabel}>Your Balance</Text>
                     <Text style={styles.balanceAmount}>
@@ -169,7 +206,11 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
                     <View style={styles.empty}>
                         <Gift size={48} color="#e2e8f0" />
                         <Text style={styles.emptyText}>No rewards available yet</Text>
-                        <Text style={styles.emptySubtext}>Check back soon — merchants are adding new rewards!</Text>
+                        <Text style={styles.emptySubtext}>
+                            {merchantId
+                                ? 'This merchant hasn\'t added any rewards yet. Check back soon!'
+                                : 'Check back soon — merchants are adding new rewards!'}
+                        </Text>
                     </View>
                 )}
 
@@ -186,7 +227,9 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
 
                 {singles.length > 0 && (
                     <View style={[styles.ssection, bundles.length > 0 ? { marginTop: 24 } : {}]}>
-                        <Text style={styles.sectionTitle}>Single Rewards</Text>
+                        <Text style={styles.sectionTitle}>
+                            {merchantId ? 'Available Rewards' : 'Single Rewards'}
+                        </Text>
                         <View style={styles.grid}>
                             {singles.map(item => (
                                 <RewardCard key={item.id} item={item} balance={balance} onRedeem={onRedeem} />
@@ -200,6 +243,38 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem }) => {
 };
 
 const styles = StyleSheet.create({
+    // ── Campaign banner ────────────────────────────────────────────────────
+    campaignBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: '#fffbeb',
+        borderWidth: 1.5,
+        borderColor: '#fde68a',
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 16,
+    },
+    campaignBannerIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: '#fef3c7',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    campaignBannerTitle: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#92400e',
+        marginBottom: 2,
+    },
+    campaignBannerSub: {
+        fontSize: 12,
+        color: '#b45309',
+        fontWeight: '500',
+    },
+    // ── End campaign banner ────────────────────────────────────────────────
     center: {
         paddingVertical: 40,
         alignItems: 'center',
@@ -288,7 +363,7 @@ const styles = StyleSheet.create({
     },
     rewardImage: {
         width: 100,
-        minHeight: 110,
+        height: 110,
         backgroundColor: '#f1f5f9',
     },
     imagePlaceholder: {

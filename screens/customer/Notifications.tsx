@@ -1,12 +1,15 @@
-import { ArrowLeft, Bell, Calendar, ChevronRight, Gift, Star, Tag } from 'lucide-react-native';
-import React from 'react';
+import { ArrowLeft, Bell, Calendar, ChevronRight, Gift, ShoppingBag, Star, Tag, Zap } from 'lucide-react-native';
+import React, { useCallback } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useRouter } from 'expo-router';
 import { GET_NOTIFICATIONS, useQuery } from '../../api/client';
+import { useFocusEffect } from 'expo-router';
 
-interface Notification {
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+interface AppNotification {
   id: string;
   title: string;
   message: string;
@@ -22,16 +25,75 @@ interface NotificationsProps {
 
 const Notifications: React.FC<NotificationsProps> = ({ onBack }) => {
   const router = useRouter();
-  const { data, loading } = useQuery(GET_NOTIFICATIONS);
-  const notifications: Notification[] = data?.notifications || [];
+  const { data, loading, refetch } = useQuery(GET_NOTIFICATIONS, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const notifications: AppNotification[] = data?.notifications || [];
 
-  const handleNotificationPress = (notification: Notification) => {
+  // Refresh on every focus so new notifications appear after returning to the screen
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
+  const handleNotificationPress = async (notification: AppNotification) => {
+    // Mark as read via REST (fire-and-forget — don't block UI)
+    if (!notification.read) {
+      fetch(`${API_BASE}/notifications/${notification.id}/read`, { method: 'PATCH' })
+        .catch(() => {/* non-fatal */});
+      // Optimistically refetch after a tick so the unread dot disappears
+      setTimeout(() => refetch(), 300);
+    }
     if (notification.link) {
       router.push(notification.link as any);
     }
   };
 
-  const renderItem = ({ item, index }: { item: Notification; index: number }) => {
+  const renderItem = ({ item, index }: { item: AppNotification; index: number }) => {
+    // ── Campaign / offer notifications → rich offer card ─────────────────────
+    if (item.type === 'offer') {
+      return (
+        <Animated.View entering={FadeInDown.delay(index * 80).duration(400)}>
+          <TouchableOpacity
+            style={[styles.offerCard, !item.read && styles.offerCardUnread]}
+            onPress={() => handleNotificationPress(item)}
+            activeOpacity={0.85}
+          >
+            {/* accent bar */}
+            <View style={styles.offerAccent} />
+
+            <View style={styles.offerInner}>
+              <View style={styles.offerHeader}>
+                <View style={styles.offerIconWrap}>
+                  <Zap size={16} color="#d97706" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.offerTitleRow}>
+                    <Text style={styles.offerTitle} numberOfLines={1}>{item.title || 'Special Offer'}</Text>
+                    {!item.read && <View style={styles.unreadDot} />}
+                  </View>
+                  <Text style={styles.offerDate}>
+                    <Calendar size={10} color="#94a3b8" /> {item.date}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.offerMessage} numberOfLines={3}>{item.message}</Text>
+
+              {/* CTA row */}
+              <View style={styles.offerCta}>
+                <ShoppingBag size={13} color="#d97706" />
+                <Text style={styles.offerCtaText}>Browse rewards to redeem</Text>
+                <ChevronRight size={14} color="#d97706" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
+    // ── Standard notifications ────────────────────────────────────────────────
     let Icon = Bell;
     let iconColor = '#64748b';
     let bgColor = '#f1f5f9';
@@ -40,10 +102,6 @@ const Notifications: React.FC<NotificationsProps> = ({ onBack }) => {
       Icon = Star;
       iconColor = '#4f46e5';
       bgColor = '#eef2ff';
-    } else if (item.type === 'offer') {
-      Icon = Tag;
-      iconColor = '#d97706';
-      bgColor = '#fffbeb';
     } else if (item.type === 'reward') {
       Icon = Gift;
       iconColor = '#059669';
@@ -51,8 +109,8 @@ const Notifications: React.FC<NotificationsProps> = ({ onBack }) => {
     }
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 100).duration(500)}>
-        <TouchableOpacity 
+      <Animated.View entering={FadeInDown.delay(index * 80).duration(400)}>
+        <TouchableOpacity
           style={[styles.card, !item.read && styles.unreadCard]}
           onPress={() => handleNotificationPress(item)}
           activeOpacity={0.7}
@@ -62,7 +120,7 @@ const Notifications: React.FC<NotificationsProps> = ({ onBack }) => {
           </View>
           <View style={styles.content}>
             <View style={styles.row}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
+              <Text style={styles.itemTitle} numberOfLines={1}>{item.title || 'Notification'}</Text>
               {!item.read && <View style={styles.unreadDot} />}
             </View>
             <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
@@ -84,9 +142,16 @@ const Notifications: React.FC<NotificationsProps> = ({ onBack }) => {
           <ArrowLeft size={20} color="#0f172a" />
         </TouchableOpacity>
         <Text style={styles.title}>Notifications</Text>
+        {notifications.some(n => !n.read) && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadBadgeText}>
+              {notifications.filter(n => !n.read).length}
+            </Text>
+          </View>
+        )}
       </View>
 
-      {loading ? (
+      {loading && notifications.length === 0 ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color="#4f46e5" />
         </View>
@@ -101,6 +166,9 @@ const Notifications: React.FC<NotificationsProps> = ({ onBack }) => {
             <View style={styles.empty}>
               <Bell size={48} color="#cbd5e1" />
               <Text style={styles.emptyText}>No notifications yet</Text>
+              <Text style={styles.emptySubText}>
+                You'll see campaign offers, rewards, and updates here.
+              </Text>
             </View>
           }
         />
@@ -127,6 +195,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
     color: '#0f172a',
+    flex: 1,
+  },
+  unreadBadge: {
+    backgroundColor: '#f43f5e',
+    borderRadius: 12,
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  unreadBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#ffffff',
   },
   list: {
     paddingHorizontal: 20,
@@ -168,12 +251,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#0f172a',
+    flex: 1,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#4f46e5',
+    marginLeft: 6,
+    flexShrink: 0,
   },
   message: {
     fontSize: 13,
@@ -191,6 +277,87 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontWeight: '600',
   },
+  // ── Campaign offer card ─────────────────────────────────────────────────
+  offerCard: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#fde68a',
+    overflow: 'hidden',
+  },
+  offerCardUnread: {
+    borderColor: '#f59e0b',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  offerAccent: {
+    height: 4,
+    backgroundColor: '#f59e0b',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  offerInner: {
+    padding: 16,
+    gap: 10,
+  },
+  offerHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  offerIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#fef3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  offerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  offerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#92400e',
+    flex: 1,
+  },
+  offerDate: {
+    fontSize: 11,
+    color: '#92400e',
+    opacity: 0.6,
+    fontWeight: '500',
+  },
+  offerMessage: {
+    fontSize: 13,
+    color: '#78350f',
+    lineHeight: 19,
+    fontWeight: '500',
+  },
+  offerCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#fde68a',
+  },
+  offerCtaText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#d97706',
+  },
+  // ── End offer card ──────────────────────────────────────────────────────
+
   loading: {
     flex: 1,
     alignItems: 'center',
@@ -201,12 +368,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 100,
-    gap: 16,
+    gap: 12,
+    paddingHorizontal: 32,
   },
   emptyText: {
     fontSize: 16,
     color: '#94a3b8',
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  emptySubText: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

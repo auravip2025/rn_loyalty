@@ -4,26 +4,82 @@ import {
   QrCode,
   Settings,
   Wallet,
+  Zap,
 } from 'lucide-react-native';
 import React from 'react';
 import {
+  Animated,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import Button from '../../components/old_app/common/Button';
-import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 
-const CustomerWallet = ({ balance, transactions, onOpenPayment }) => {
+// ── Skeleton shimmer for loading state ────────────────────────────────────────
+const SkeletonRow = ({ index }) => {
+  const opacity = React.useRef(new Animated.Value(0.3)).current;
+
+  React.useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1,   duration: 700, delay: index * 80, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [index]);
+
+  return (
+    <Animated.View style={[styles.skeletonRow, { opacity }]}>
+      <View style={styles.skeletonIcon} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <View style={[styles.skeletonLine, { width: '55%' }]} />
+        <View style={[styles.skeletonLine, { width: '30%', opacity: 0.6 }]} />
+      </View>
+      <View style={[styles.skeletonLine, { width: 60 }]} />
+    </Animated.View>
+  );
+};
+
+// ── Single transaction row ─────────────────────────────────────────────────────
+const TransactionRow = ({ tx }) => {
+  const isEarn = tx.type === 'earn';
+  return (
+    <View style={styles.txRow}>
+      <View style={[styles.txIconWrap, isEarn ? styles.txIconEarn : styles.txIconSpend]}>
+        {isEarn
+          ? <ArrowDownLeft size={18} color="#059669" />
+          : <ArrowUpRight  size={18} color="#e11d48" />
+        }
+      </View>
+      <View style={styles.txInfo}>
+        <Text style={styles.txMerchant} numberOfLines={1}>{tx.merchant}</Text>
+        <Text style={styles.txDate}>{tx.date}</Text>
+      </View>
+      <View style={styles.txAmountCol}>
+        <Text style={[styles.txAmount, isEarn ? styles.amountEarn : styles.amountSpend]}>
+          {isEarn ? '+' : '−'}{Number(tx.amount).toLocaleString()}
+        </Text>
+        <Text style={styles.txUnit}>pts</Text>
+      </View>
+    </View>
+  );
+};
+
+// ── Main component ─────────────────────────────────────────────────────────────
+const CustomerWallet = ({ balance, transactions = [], loading = false, onOpenPayment }) => {
+  const latest = transactions.slice(0, 10);
+
   return (
     <ScreenWrapper
       scroll
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={styles.title}>Wallet</Text>
         <TouchableOpacity style={styles.settingsButton}>
@@ -31,22 +87,21 @@ const CustomerWallet = ({ balance, transactions, onOpenPayment }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Balance Card */}
+      {/* ── Balance card ── */}
       <View style={styles.balanceCard}>
-        {/* Background Effects */}
-        <View style={[styles.bgEffect, styles.bgEffect1]} />
-        <View style={[styles.bgEffect, styles.bgEffect2]} />
+        <View style={[styles.bgCircle, styles.bgCircle1]} />
+        <View style={[styles.bgCircle, styles.bgCircle2]} />
 
         <View style={styles.balanceHeader}>
           <View>
             <Text style={styles.balanceLabel}>Available Balance</Text>
-            <Text style={styles.balanceAmount}>
-              {balance.toLocaleString()}{' '}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+              <Text style={styles.balanceAmount}>{(balance || 0).toLocaleString()}</Text>
               <Text style={styles.balanceUnit}>dandan</Text>
-            </Text>
+            </View>
           </View>
-          <View style={styles.walletIcon}>
-            <Wallet size={24} color="#ffffff" />
+          <View style={styles.walletIconWrap}>
+            <Wallet size={22} color="#ffffff" />
           </View>
         </View>
 
@@ -59,58 +114,58 @@ const CustomerWallet = ({ balance, transactions, onOpenPayment }) => {
         </Button>
       </View>
 
-      {/* Recent Transactions */}
-      <View style={styles.transactionsHeader}>
-        <Text style={styles.transactionsTitle}>Activity</Text>
-        <TouchableOpacity>
-          <Text style={styles.viewAllButton}>View All</Text>
-        </TouchableOpacity>
+      {/* ── Transaction section header ── */}
+      <View style={styles.sectionHeader}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          {!loading && latest.length > 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{latest.length}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      <View style={styles.transactionsList}>
-        {transactions.map((tx) => (
-          <Card key={tx.id} style={styles.transactionCard}>
-            <View
-              style={[
-                styles.transactionIcon,
-                tx.type === 'earn'
-                  ? styles.transactionIconEarn
-                  : styles.transactionIconSpend,
-              ]}>
-              {tx.type === 'earn' ? (
-                <ArrowDownLeft size={20} color="#059669" />
-              ) : (
-                <ArrowUpRight size={20} color="#e11d48" />
-              )}
-            </View>
-            <View style={styles.transactionInfo}>
-              <Text style={styles.transactionMerchant}>{tx.merchant}</Text>
-              <Text style={styles.transactionDate}>{tx.date}</Text>
-            </View>
-            <Text
-              style={[
-                styles.transactionAmount,
-                tx.type === 'earn'
-                  ? styles.transactionAmountEarn
-                  : styles.transactionAmountSpend,
-              ]}>
-              {tx.type === 'earn' ? '+' : '-'}{tx.amount}
-            </Text>
-          </Card>
-        ))}
-      </View>
+      {/* ── Loading skeleton ── */}
+      {loading && (
+        <View style={styles.listWrap}>
+          {[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} index={i} />)}
+        </View>
+      )}
+
+      {/* ── Empty state ── */}
+      {!loading && latest.length === 0 && (
+        <View style={styles.emptyWrap}>
+          <View style={styles.emptyIcon}>
+            <Zap size={28} color="#c7d2fe" />
+          </View>
+          <Text style={styles.emptyTitle}>No transactions yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Earn or spend dandan tokens and your activity will appear here.
+          </Text>
+        </View>
+      )}
+
+      {/* ── Transaction list ── */}
+      {!loading && latest.length > 0 && (
+        <View style={styles.listWrap}>
+          {latest.map((tx, i) => (
+            <React.Fragment key={tx.id ?? i}>
+              <TransactionRow tx={tx} />
+              {i < latest.length - 1 && <View style={styles.divider} />}
+            </React.Fragment>
+          ))}
+        </View>
+      )}
+
     </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  contentContainer: {
-    // paddingBottom: 100, // Handled by wrapper
-    // paddingHorizontal: 24, // Handled by wrapper
-  },
+  contentContainer: {},
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -128,12 +183,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     borderRadius: 20,
   },
+
+  // Balance card
   balanceCard: {
     backgroundColor: '#0f172a',
     borderRadius: 24,
     padding: 24,
     marginBottom: 32,
-    position: 'relative',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -141,6 +197,15 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
+  bgCircle: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    opacity: 0.25,
+  },
+  bgCircle1: { top: -70, right: -70, backgroundColor: '#4f46e5' },
+  bgCircle2: { bottom: -70, left: -70, backgroundColor: '#059669' },
   balanceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -152,23 +217,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#94a3b8',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginBottom: 8,
   },
   balanceAmount: {
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
     color: '#ffffff',
+    letterSpacing: -1,
   },
   balanceUnit: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#94a3b8',
+    marginBottom: 6,
   },
-  walletIcon: {
-    padding: 8,
+  walletIconWrap: {
+    padding: 10,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
+    borderRadius: 14,
   },
   payButton: {
     flexDirection: 'row',
@@ -179,85 +246,155 @@ const styles = StyleSheet.create({
   payButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
-  bgEffect: {
-    position: 'absolute',
-    width: 256,
-    height: 256,
-    borderRadius: 128,
-    opacity: 0.3,
-  },
-  bgEffect1: {
-    top: -64,
-    right: -64,
-    backgroundColor: '#4f46e5',
-  },
-  bgEffect2: {
-    bottom: -64,
-    left: -64,
-    backgroundColor: '#059669',
-  },
-  transactionsHeader: {
+
+  // Section header
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  transactionsTitle: {
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '900',
     color: '#0f172a',
   },
-  viewAllButton: {
-    fontSize: 12,
-    fontWeight: 'bold',
+  countBadge: {
+    backgroundColor: '#e0e7ff',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  countBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
     color: '#4f46e5',
   },
-  transactionsList: {
-    gap: 12,
+
+  // Transaction list card
+  listWrap: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: 32,
   },
-  transactionCard: {
+  divider: {
+    height: 1,
+    backgroundColor: '#f8fafc',
+    marginHorizontal: 16,
+  },
+
+  // Transaction row
+  txRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingVertical: 16,
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  transactionIcon: {
-    width: 48,
-    height: 48,
+  txIconWrap: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  transactionIconEarn: {
-    backgroundColor: '#ecfdf5',
-  },
-  transactionIconSpend: {
-    backgroundColor: '#fff1f2',
-  },
-  transactionInfo: {
+  txIconEarn:  { backgroundColor: '#ecfdf5' },
+  txIconSpend: { backgroundColor: '#fff1f2' },
+  txInfo: {
     flex: 1,
+    gap: 3,
   },
-  transactionMerchant: {
+  txMerchant: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#0f172a',
+  },
+  txDate: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  txAmountCol: {
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  txAmount: {
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  txUnit: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  amountEarn:  { color: '#059669' },
+  amountSpend: { color: '#e11d48' },
+
+  // Empty state
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+    backgroundColor: '#fafafa',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    marginBottom: 32,
+    gap: 12,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#eef2ff',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 4,
   },
-  transactionDate: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  transactionAmount: {
+  emptyTitle: {
     fontSize: 16,
-    fontWeight: '900',
-  },
-  transactionAmountEarn: {
-    color: '#059669',
-  },
-  transactionAmountSpend: {
+    fontWeight: '800',
     color: '#0f172a',
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Skeleton
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  skeletonIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#e2e8f0',
+  },
+  skeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#e2e8f0',
   },
 });
 

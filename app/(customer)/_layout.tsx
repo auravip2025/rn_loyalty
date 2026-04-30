@@ -63,6 +63,12 @@ export default function CustomerLayout() {
                 }}
             />
             <Tabs.Screen
+                name="notifications"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="offer-details"
                 options={{
                     href: null,
@@ -106,6 +112,12 @@ export default function CustomerLayout() {
             />
             <Tabs.Screen
                 name="payment-success"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="campaign-offer"
                 options={{
                     href: null,
                 }}

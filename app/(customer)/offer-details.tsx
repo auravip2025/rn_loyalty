@@ -1,10 +1,19 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import OfferDetails from '../../screens/customer/OfferDetails';
 
 export default function OfferDetailsPage() {
     const router = useRouter();
     const { offer: offerStr } = useLocalSearchParams();
+    const [redeemed, setRedeemed] = useState(false);
+
+    // offer-details is a Tab screen (href: null) — Tab screens are singletons,
+    // so router.push with new params reuses this component instance rather than
+    // mounting a fresh one. Reset the redeemed flag whenever a different offer
+    // navigates here so Offer A's redemption state doesn't bleed into Offer B.
+    useEffect(() => {
+        setRedeemed(false);
+    }, [offerStr]);
 
     if (!offerStr) return null;
 
@@ -51,6 +60,8 @@ export default function OfferDetailsPage() {
             quantity: 1,
         }];
 
+        setRedeemed(true);
+
         router.push({
             pathname: '/(customer)/checkout' as any,
             params: {
@@ -67,6 +78,7 @@ export default function OfferDetailsPage() {
     return (
         <OfferDetails
             offer={offer}
+            redeemed={redeemed}
             onBack={() => router.back()}
             onCheckout={handleRedeem}
         />
