@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import ScanView from '../../components/old_app/payment/ScanView';
-import MerchantScanPayment from '../../screens/merchant/MerchantScanPayment';
-import { useAuth } from '../../contexts/AuthContext';
+import ScanView from '../../../components/old_app/payment/ScanView';
+import MerchantScanPayment from '../../../screens/merchant/MerchantScanPayment';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export default function MerchantScanPage() {
     const router = useRouter();

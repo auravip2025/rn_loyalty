@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BadgeDollarSign } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MerchantAnalytics from '../../screens/merchant/MerchantAnalytics';
+import MerchantAnalytics from '../../../screens/merchant/MerchantAnalytics';
 
 export default function MerchantHomePage() {
     const router = useRouter();
