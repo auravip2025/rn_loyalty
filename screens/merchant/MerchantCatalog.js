@@ -23,8 +23,10 @@ import {
     Animated,
     Dimensions,
     Image,
+    KeyboardAvoidingView,
     Modal,
     PanResponder,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -359,12 +361,18 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                             </View>
                             <Text style={modalStyles.sheetTitle}>{isEdit ? 'Edit Reward' : 'New Reward Item'}</Text>
 
+                            <KeyboardAvoidingView
+                                style={{ flex: 1 }}
+                                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                                keyboardVerticalOffset={8}
+                            >
                             <ScrollView
                                 ref={scrollRef}
                                 showsVerticalScrollIndicator={false}
                                 style={modalStyles.scroll}
                                 contentContainerStyle={modalStyles.scrollContent}
                                 keyboardShouldPersistTaps="handled"
+                                nestedScrollEnabled
                             >
 
                         {/* Image picker — preview matches customer card dimensions (100px wide side image) */}
@@ -795,6 +803,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                                     }
                                 </TouchableOpacity>
                             </View>
+                            </KeyboardAvoidingView>
                         </Animated.View>
                     </TouchableWithoutFeedback>
                 </View>
@@ -807,13 +816,16 @@ const modalStyles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: {
         backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        paddingHorizontal: 20, height: SCREEN_H * 0.88, flexDirection: 'column',
+        paddingHorizontal: 20,
+        maxHeight: SCREEN_H * 0.93,
+        height: SCREEN_H * 0.93,
+        flexDirection: 'column',
     },
     sheetHandleHitArea: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
     sheetHandle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
     sheetTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a', marginBottom: 16 },
     scroll: { flex: 1 },
-    scrollContent: { paddingBottom: 24 },
+    scrollContent: { paddingBottom: 48 },
     typeRow: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 12, padding: 4, gap: 4, marginBottom: 16 },
     typeBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
     typeBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
@@ -835,7 +847,12 @@ const modalStyles = StyleSheet.create({
     fieldError: { fontSize: 11, color: '#dc2626', fontWeight: '600', marginTop: 4 },
     inputError: { borderColor: '#dc2626', backgroundColor: '#fff5f5' },
     labelError: { color: '#dc2626' },
-    actions: { flexDirection: 'row', gap: 12, marginTop: 16 },
+    actions: {
+        flexDirection: 'row', gap: 12,
+        paddingTop: 12, paddingBottom: 20,
+        backgroundColor: '#fff',
+        borderTopWidth: 1, borderTopColor: '#f1f5f9',
+    },
     // Store searchable dropdown
     ddTrigger: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -947,7 +964,6 @@ const modalStyles = StyleSheet.create({
         borderColor: '#e2e8f0',
         borderRadius: 14,
         marginBottom: 12,
-        overflow: 'hidden',
     },
     detailsHeader: {
         flexDirection: 'row',
