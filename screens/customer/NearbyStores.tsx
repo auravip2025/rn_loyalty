@@ -28,7 +28,9 @@ import {
   View,
   Alert,
 } from 'react-native';
-import * as Location from 'expo-location';
+// expo-location requires a native build — safe-require so Expo Go doesn't crash
+let Location: any = null;
+try { Location = require('expo-location'); } catch (_) {}
 import Animated, {
   Easing,
   FadeIn,
@@ -378,7 +380,7 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({ onBack }) => {
   const [sortBy, setSortBy] = useState<SortKey>('distance');
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
   
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [location, setLocation] = useState<any>(null);
   const [locationName, setLocationName] = useState('Orchard, SG');
 
   const { data } = useQuery(GET_NEARBY, {
@@ -392,6 +394,11 @@ const NearbyStores: React.FC<NearbyStoresProps> = ({ onBack }) => {
   const allMerchants: Merchant[] = data?.merchants || [];
 
   const handleAllowAccess = async () => {
+    if (!Location) {
+      Alert.alert('Location unavailable', 'Run a development build (npx expo run:ios) to enable location.');
+      setStatus('prompt');
+      return;
+    }
     setStatus('loading');
     try {
       const { status: authStatus } = await Location.requestForegroundPermissionsAsync();

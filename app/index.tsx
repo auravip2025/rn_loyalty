@@ -14,7 +14,8 @@ export default function Index() {
     // a REPLACE action into the Tab navigator which doesn't support it.
     if (isAuthenticated && role === 'customer') {
         const isNew = typeof user === 'object' && user?.isNew;
-        if (isNew) return <Redirect href="/(customer)/preferences" />;
+        // New user who hasn't filled in their name yet → onboarding screen
+        if (isNew && !user?.name) return <Redirect href="/(customer)/onboarding" />;
         return <Redirect href="/(customer)/home" />;
     }
 

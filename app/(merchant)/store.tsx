@@ -1,14 +1,12 @@
 import React from 'react';
-import { usePrograms } from '../../contexts/ProgramContext';
+import { useAuth } from '../../contexts/AuthContext';
 import MerchantStore from '../../screens/merchant/MerchantStore';
 
 export default function StorePage() {
-    const { programs, updateProgram } = usePrograms();
+    const { merchantProfile } = useAuth();
+    const merchantId = merchantProfile?.id ?? null;
 
     return (
-        <MerchantStore
-            programs={programs}
-            onUpdateProgram={updateProgram}
-        />
+        <MerchantStore merchantId={merchantId} />
     );
 }

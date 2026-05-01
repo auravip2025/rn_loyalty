@@ -5,6 +5,7 @@ import {
     Gift,
     ImageIcon,
     Leaf,
+    Minus,
     Package,
     Plus,
     Search,
@@ -12,7 +13,9 @@ import {
     Trash2,
     X,
 } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
+// expo-image-picker requires a native build — safe-require so Expo Go doesn't crash
+let ImagePicker = null;
+try { ImagePicker = require('expo-image-picker'); } catch (_) {}
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -36,6 +39,7 @@ import Badge from '../../components/old_app/common/Badge';
 import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
+import { getRewardDetails } from '../../utils/rewardDetails';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -43,6 +47,42 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 const typeIcon = (type) => {
     if (type === 'BUNDLE') return Package;
     return Gift;
+};
+
+// ─── Product details helpers ──────────────────────────────────────────────────
+const emptyProductDetails = () => ({
+    category: '',
+    highlights: ['', '', ''],
+    specs: [],
+    includes: [],
+    allergens: '',
+    terms: '',
+});
+
+const initProductDetails = (reward) => {
+    if (reward?.productDetails) {
+        const pd = reward.productDetails;
+        return {
+            category:   pd.category   || '',
+            highlights: [...(pd.highlights || []), '', '', ''].slice(0, 3),
+            specs:      pd.specs      || [],
+            includes:   pd.includes   || [],
+            allergens:  pd.allergens  || '',
+            terms:      pd.terms      || '',
+        };
+    }
+    if (reward?.name) {
+        const mock = getRewardDetails(reward.name);
+        return {
+            category:   mock.category || '',
+            highlights: [...mock.highlights, '', ''].slice(0, 3),
+            specs:      mock.specs    || [],
+            includes:   mock.includes || [],
+            allergens:  mock.allergens || '',
+            terms:      mock.terms    || '',
+        };
+    }
+    return emptyProductDetails();
 };
 
 // ─── Create / Edit Modal ──────────────────────────────────────────────────────
@@ -95,12 +135,14 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
         storeId: '',
         imageUri: null,
         imageChanged: false,
+        productDetails: emptyProductDetails(),
     });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
     const [fieldErrors, setFieldErrors] = useState({});
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
     const [storeSearch, setStoreSearch] = useState('');
+    const [detailsExpanded, setDetailsExpanded] = useState(false);
     const scrollRef = useRef(null);
 
     // Auto-select the only store when there is exactly one; otherwise start blank
@@ -112,6 +154,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
             setFieldErrors({});
             setStoreDropdownOpen(false);
             setStoreSearch('');
+            setDetailsExpanded(false);
             setForm(reward ? {
                 name: reward.name || '',
                 description: reward.description || '',
@@ -126,6 +169,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                 storeId: reward.storeId || defaultStoreId,
                 imageUri: reward.imageUrl || null,
                 imageChanged: false,
+                productDetails: initProductDetails(reward),
             } : {
                 name: '',
                 description: '',
@@ -140,11 +184,16 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                 storeId: defaultStoreId,
                 imageUri: null,
                 imageChanged: false,
+                productDetails: emptyProductDetails(),
             });
         }
     }, [visible, reward, stores]);
 
     const pickImage = async () => {
+        if (!ImagePicker) {
+            setError('Image picker unavailable — run a development build (npx expo run:ios) to upload images.');
+            return;
+        }
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
             setError('Photo library permission is required to upload images.');
@@ -194,6 +243,17 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
             const token = await AsyncStorage.getItem('@dandan_auth_token');
             const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
+            // Clean productDetails — strip blank entries
+            const pd = form.productDetails;
+            const cleanDetails = {
+                category:   pd.category.trim(),
+                highlights: pd.highlights.filter(h => h.trim()),
+                specs:      pd.specs.filter(s => s.label.trim() && s.value.trim()),
+                includes:   (pd.includes || []).filter(i => i.trim()),
+                allergens:  pd.allergens.trim(),
+                terms:      pd.terms.trim(),
+            };
+
             let res;
             if (form.imageChanged && form.imageUri) {
                 const formData = new FormData();
@@ -209,6 +269,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                 formData.append('isGreenReward', String(form.isGreenReward));
                 if (form.carbonOffsetKg) formData.append('carbonOffsetKg', String(parseFloat(form.carbonOffsetKg)));
                 if (form.ecoDescription.trim()) formData.append('ecoDescription', form.ecoDescription.trim());
+                formData.append('productDetails', JSON.stringify(cleanDetails));
                 const ext = form.imageUri.split('.').pop()?.toLowerCase() || 'jpg';
                 formData.append('image', {
                     uri: form.imageUri,
@@ -234,6 +295,7 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                     isGreenReward: form.isGreenReward,
                     carbonOffsetKg: form.carbonOffsetKg ? parseFloat(form.carbonOffsetKg) : 0,
                     ecoDescription: form.ecoDescription.trim() || null,
+                    productDetails: cleanDetails,
                 };
                 const url = isEdit
                     ? `${API_URL}/catalog/rewards/${reward.id}`
@@ -498,6 +560,227 @@ const RewardFormModal = ({ visible, reward, merchantId, stores, onSave, onClose 
                             </>
                         )}
 
+                        {/* ── Product Details (collapsible) ────────────────────── */}
+                        <View style={modalStyles.detailsSection}>
+                            <TouchableOpacity
+                                style={modalStyles.detailsHeader}
+                                onPress={() => setDetailsExpanded(v => !v)}
+                                activeOpacity={0.7}
+                            >
+                                <View style={modalStyles.detailsHeaderLeft}>
+                                    <Text style={modalStyles.detailsHeaderTitle}>Product Details</Text>
+                                    <Text style={modalStyles.detailsHeaderSub}>
+                                        Shown on customer reward screen
+                                    </Text>
+                                </View>
+                                <ChevronDown
+                                    size={16}
+                                    color="#64748b"
+                                    style={detailsExpanded ? { transform: [{ rotate: '180deg' }] } : {}}
+                                />
+                            </TouchableOpacity>
+
+                            {/* Auto-suggest strip (only when expanded & name exists) */}
+                            {detailsExpanded && form.name.trim() && (
+                                <TouchableOpacity
+                                    style={modalStyles.autoSuggestBtn}
+                                    onPress={() => setForm(f => ({
+                                        ...f,
+                                        productDetails: initProductDetails({ name: f.name }),
+                                    }))}
+                                    activeOpacity={0.75}
+                                >
+                                    <Text style={modalStyles.autoSuggestText}>
+                                        ✨ Auto-fill from "{form.name.trim()}"
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {detailsExpanded && (
+                                <View style={modalStyles.detailsBody}>
+
+                                    {/* Category */}
+                                    <View style={modalStyles.field}>
+                                        <Text style={modalStyles.label}>Category</Text>
+                                        <TextInput
+                                            style={modalStyles.input}
+                                            placeholder="e.g. Hot Coffee"
+                                            placeholderTextColor="#cbd5e1"
+                                            value={form.productDetails.category}
+                                            onChangeText={v => setForm(f => ({
+                                                ...f,
+                                                productDetails: { ...f.productDetails, category: v },
+                                            }))}
+                                        />
+                                    </View>
+
+                                    {/* Highlights */}
+                                    <View style={modalStyles.field}>
+                                        <Text style={modalStyles.label}>Highlights (up to 3)</Text>
+                                        <Text style={modalStyles.fieldHint}>
+                                            Short emoji phrases shown as chips, e.g. "☕ Freshly Brewed"
+                                        </Text>
+                                        {[0, 1, 2].map(i => (
+                                            <TextInput
+                                                key={i}
+                                                style={[modalStyles.input, i < 2 && { marginBottom: 6 }]}
+                                                placeholder={`Highlight ${i + 1}`}
+                                                placeholderTextColor="#cbd5e1"
+                                                value={form.productDetails.highlights[i] || ''}
+                                                onChangeText={v => {
+                                                    const h = [...form.productDetails.highlights];
+                                                    h[i] = v;
+                                                    setForm(f => ({
+                                                        ...f,
+                                                        productDetails: { ...f.productDetails, highlights: h },
+                                                    }));
+                                                }}
+                                            />
+                                        ))}
+                                    </View>
+
+                                    {/* Product Specs */}
+                                    <View style={modalStyles.field}>
+                                        <View style={modalStyles.fieldRowHeader}>
+                                            <Text style={modalStyles.label}>Product Specs</Text>
+                                            <TouchableOpacity
+                                                style={modalStyles.addRowBtn}
+                                                onPress={() => setForm(f => ({
+                                                    ...f,
+                                                    productDetails: {
+                                                        ...f.productDetails,
+                                                        specs: [...f.productDetails.specs, { label: '', value: '' }],
+                                                    },
+                                                }))}
+                                                disabled={form.productDetails.specs.length >= 8}
+                                            >
+                                                <Plus size={11} color="#4f46e5" />
+                                                <Text style={modalStyles.addRowBtnText}>Add Row</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        {form.productDetails.specs.length === 0 && (
+                                            <Text style={modalStyles.emptyListHint}>No specs yet — tap Add Row.</Text>
+                                        )}
+                                        {form.productDetails.specs.map((spec, i) => (
+                                            <View key={i} style={modalStyles.dynRow}>
+                                                <TextInput
+                                                    style={[modalStyles.input, modalStyles.dynLabel]}
+                                                    placeholder="Label"
+                                                    placeholderTextColor="#cbd5e1"
+                                                    value={spec.label}
+                                                    onChangeText={v => {
+                                                        const s = [...form.productDetails.specs];
+                                                        s[i] = { ...s[i], label: v };
+                                                        setForm(f => ({ ...f, productDetails: { ...f.productDetails, specs: s } }));
+                                                    }}
+                                                />
+                                                <TextInput
+                                                    style={[modalStyles.input, modalStyles.dynValue]}
+                                                    placeholder="Value"
+                                                    placeholderTextColor="#cbd5e1"
+                                                    value={spec.value}
+                                                    onChangeText={v => {
+                                                        const s = [...form.productDetails.specs];
+                                                        s[i] = { ...s[i], value: v };
+                                                        setForm(f => ({ ...f, productDetails: { ...f.productDetails, specs: s } }));
+                                                    }}
+                                                />
+                                                <TouchableOpacity
+                                                    style={modalStyles.removeRowBtn}
+                                                    onPress={() => {
+                                                        const s = form.productDetails.specs.filter((_, idx) => idx !== i);
+                                                        setForm(f => ({ ...f, productDetails: { ...f.productDetails, specs: s } }));
+                                                    }}
+                                                >
+                                                    <Minus size={13} color="#ef4444" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+
+                                    {/* What's Included */}
+                                    <View style={modalStyles.field}>
+                                        <View style={modalStyles.fieldRowHeader}>
+                                            <Text style={modalStyles.label}>What's Included</Text>
+                                            <TouchableOpacity
+                                                style={modalStyles.addRowBtn}
+                                                onPress={() => setForm(f => ({
+                                                    ...f,
+                                                    productDetails: {
+                                                        ...f.productDetails,
+                                                        includes: [...(f.productDetails.includes || []), ''],
+                                                    },
+                                                }))}
+                                                disabled={(form.productDetails.includes?.length || 0) >= 5}
+                                            >
+                                                <Plus size={11} color="#4f46e5" />
+                                                <Text style={modalStyles.addRowBtnText}>Add</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        {(form.productDetails.includes || []).map((item, i) => (
+                                            <View key={i} style={modalStyles.dynRow}>
+                                                <TextInput
+                                                    style={[modalStyles.input, { flex: 1 }]}
+                                                    placeholder={`Included item ${i + 1}`}
+                                                    placeholderTextColor="#cbd5e1"
+                                                    value={item}
+                                                    onChangeText={v => {
+                                                        const inc = [...(form.productDetails.includes || [])];
+                                                        inc[i] = v;
+                                                        setForm(f => ({ ...f, productDetails: { ...f.productDetails, includes: inc } }));
+                                                    }}
+                                                />
+                                                <TouchableOpacity
+                                                    style={modalStyles.removeRowBtn}
+                                                    onPress={() => {
+                                                        const inc = (form.productDetails.includes || []).filter((_, idx) => idx !== i);
+                                                        setForm(f => ({ ...f, productDetails: { ...f.productDetails, includes: inc } }));
+                                                    }}
+                                                >
+                                                    <Minus size={13} color="#ef4444" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+
+                                    {/* Allergen notice */}
+                                    <View style={modalStyles.field}>
+                                        <Text style={modalStyles.label}>Allergen / Dietary Notice</Text>
+                                        <TextInput
+                                            style={modalStyles.input}
+                                            placeholder="e.g. Contains dairy and gluten."
+                                            placeholderTextColor="#cbd5e1"
+                                            value={form.productDetails.allergens}
+                                            onChangeText={v => setForm(f => ({
+                                                ...f,
+                                                productDetails: { ...f.productDetails, allergens: v },
+                                            }))}
+                                            multiline
+                                            numberOfLines={2}
+                                        />
+                                    </View>
+
+                                    {/* Terms */}
+                                    <View style={modalStyles.field}>
+                                        <Text style={modalStyles.label}>Terms & Conditions</Text>
+                                        <TextInput
+                                            style={[modalStyles.input, { minHeight: 72, textAlignVertical: 'top' }]}
+                                            placeholder="e.g. Valid at participating outlets. One per customer."
+                                            placeholderTextColor="#cbd5e1"
+                                            value={form.productDetails.terms}
+                                            onChangeText={v => setForm(f => ({
+                                                ...f,
+                                                productDetails: { ...f.productDetails, terms: v },
+                                            }))}
+                                            multiline
+                                            numberOfLines={3}
+                                        />
+                                    </View>
+
+                                </View>
+                            )}
+                        </View>
+
                         {error ? <Text style={modalStyles.error}>{error}</Text> : null}
                             </ScrollView>
 
@@ -657,6 +940,104 @@ const modalStyles = StyleSheet.create({
     cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#64748b' },
     saveBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#10b981', alignItems: 'center' },
     saveBtnText: { fontSize: 14, fontWeight: '900', color: '#fff' },
+
+    // ── Product details section ───────────────────────────────────────────────
+    detailsSection: {
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 14,
+        marginBottom: 12,
+        overflow: 'hidden',
+    },
+    detailsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 14,
+        paddingVertical: 13,
+        backgroundColor: '#f8fafc',
+    },
+    detailsHeaderLeft: { flex: 1 },
+    detailsHeaderTitle: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#0f172a',
+    },
+    detailsHeaderSub: {
+        fontSize: 11,
+        color: '#94a3b8',
+        marginTop: 1,
+    },
+    autoSuggestBtn: {
+        marginHorizontal: 14,
+        marginTop: 10,
+        backgroundColor: '#eef2ff',
+        borderRadius: 10,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        alignSelf: 'flex-start',
+    },
+    autoSuggestText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#4f46e5',
+    },
+    detailsBody: {
+        padding: 14,
+        paddingTop: 8,
+        gap: 0,
+        borderTopWidth: 1,
+        borderTopColor: '#f1f5f9',
+    },
+    fieldHint: {
+        fontSize: 11,
+        color: '#94a3b8',
+        marginBottom: 6,
+        lineHeight: 15,
+    },
+    fieldRowHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 6,
+    },
+    addRowBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#eef2ff',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 8,
+    },
+    addRowBtnText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#4f46e5',
+    },
+    dynRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 6,
+    },
+    dynLabel: { flex: 2 },
+    dynValue: { flex: 3 },
+    removeRowBtn: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        backgroundColor: '#fef2f2',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    emptyListHint: {
+        fontSize: 11,
+        color: '#cbd5e1',
+        fontStyle: 'italic',
+        marginBottom: 4,
+    },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────

@@ -45,7 +45,27 @@ const Notifications: React.FC<NotificationsProps> = ({ onBack }) => {
       // Optimistically refetch after a tick so the unread dot disappears
       setTimeout(() => refetch(), 300);
     }
-    if (notification.link) {
+    if (notification.type === 'offer') {
+      // Extract merchantId from the stored link (present on notifications sent
+      // after notification-service was restarted with the link column in place)
+      const merchantIdMatch = (notification.link || '').match(/merchantId=([^&]+)/);
+      const merchantId = merchantIdMatch ? merchantIdMatch[1] : null;
+
+      if (merchantId) {
+        router.push({
+          pathname: '/(customer)/campaign-offer' as any,
+          params: {
+            merchantId,
+            title:   notification.title   || 'Campaign Offer',
+            message: notification.message || '',
+          },
+        });
+      } else {
+        // Older notification saved before the link column existed — fall back
+        // to the general rewards screen so the tap is never a dead end
+        router.push('/(customer)/rewards' as any);
+      }
+    } else if (notification.link) {
       router.push(notification.link as any);
     }
   };

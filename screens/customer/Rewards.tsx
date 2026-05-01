@@ -114,7 +114,14 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem, merchantId
             setLoading(true);
             try {
                 const token = await AsyncStorage.getItem('@dandan_auth_token');
-                const res = await fetch(`${API_URL}/catalog/rewards`, {
+                // When a merchantId is provided, call the merchant-specific endpoint
+                // directly instead of fetching all rewards and filtering client-side
+                // (the client-side filter only works if the reward's merchantId field
+                // matches, which is not always the case with the general catalog).
+                const url = merchantId
+                    ? `${API_URL}/catalog/rewards/merchant/${merchantId}`
+                    : `${API_URL}/catalog/rewards`;
+                const res = await fetch(url, {
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                 });
                 if (!res.ok) throw new Error(`Server returned ${res.status}`);
@@ -134,10 +141,8 @@ const Rewards: React.FC<RewardsProps> = ({ onBack, balance, onRedeem, merchantId
         return () => { cancelled = true; };
     }, [merchantId]));
 
-    // When deep-linked from a campaign notification, show only that merchant's items
-    const rewards = merchantId
-        ? allRewards.filter(r => r.merchantId === merchantId)
-        : allRewards;
+    // allRewards is already scoped to the merchant when merchantId was provided
+    const rewards = allRewards;
 
     const bundles = rewards.filter(r => r.type?.toUpperCase() === 'BUNDLE');
     const singles = rewards.filter(r => r.type?.toUpperCase() !== 'BUNDLE');

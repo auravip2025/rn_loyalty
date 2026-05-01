@@ -5,9 +5,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Crown,
+  Gem,
   Gift,
   History,
   MapPin,
+  Medal,
+  MessageCircle,
   Monitor,
   Scissors,
   Shirt,
@@ -268,27 +271,26 @@ const OfferCardItem: React.FC<OfferCardItemProps> = ({ offer, index, onPress }) 
     <Animated.View style={animStyle}>
       <TouchableOpacity onPress={onPress} style={styles.offerCard} activeOpacity={0.88}>
 
-        {/* LEFT — square image: remote URL → local asset → placeholder */}
+        {/* LEFT — image with inset margin + rounded corners */}
         <View style={styles.offerImageWrap}>
-          {offer.image
-            ? <Image source={{ uri: offer.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            : (() => {
-                const localImg = getRewardImage(offer.title);
-                return localImg
-                  // Local require() assets must use explicit pixel dimensions —
-                  // absoluteFill renders them at their natural (huge) resolution.
-                  ? <Image source={localImg} style={styles.offerLocalImage} resizeMode="cover" />
-                  : <View style={[StyleSheet.absoluteFill, styles.offerImagePlaceholder]}>
-                      <Zap size={28} color="rgba(255,255,255,0.3)" fill="rgba(255,255,255,0.3)" />
-                    </View>;
-              })()
-          }
-          {/* Hot flame overlay on image */}
-          {hot && (
-            <View style={styles.offerHotBadge}>
-              <Text style={styles.offerHotBadgeText}>🔥</Text>
-            </View>
-          )}
+          <View style={styles.offerImageInner}>
+            {offer.image
+              ? <Image source={{ uri: offer.image }} style={styles.offerImg} resizeMode="cover" />
+              : (() => {
+                  const localImg = getRewardImage(offer.title);
+                  return localImg
+                    ? <Image source={localImg} style={styles.offerImg} resizeMode="cover" />
+                    : <View style={styles.offerImagePlaceholder}>
+                        <Zap size={22} color="rgba(255,255,255,0.35)" fill="rgba(255,255,255,0.35)" />
+                      </View>;
+                })()
+            }
+            {hot && (
+              <View style={styles.offerHotBadge}>
+                <Text style={styles.offerHotBadgeText}>🔥</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* RIGHT — offer details */}
@@ -437,15 +439,90 @@ interface CustomerHomeProps {
   merchants?: Merchant[];
   recentStores?: Store[];
   balance: number;
+  userName?: string;
   onOpenWallet: () => void;
   onScan: () => void;
 }
+
+// ── Tier thresholds ───────────────────────────────────────────────────────────
+const TIERS = [
+  {
+    name: 'Bronze',
+    min: 0,
+    max: 2499,
+    next: 'Silver',
+    nextAt: 2500,
+    cardBg: '#2c1a0e',
+    accent: '#cd7f32',
+    badgeBg: 'rgba(205,127,50,0.18)',
+    barColor: '#cd7f32',
+    Icon: Medal,
+  },
+  {
+    name: 'Silver',
+    min: 2500,
+    max: 5000,
+    next: 'Gold',
+    nextAt: 5001,
+    cardBg: '#0f1929',
+    accent: '#94a3b8',
+    badgeBg: 'rgba(148,163,184,0.18)',
+    barColor: '#94a3b8',
+    Icon: Star,
+  },
+  {
+    name: 'Gold',
+    min: 5001,
+    max: 10000,
+    next: 'Platinum',
+    nextAt: 10001,
+    cardBg: '#0f172a',
+    accent: '#fbbf24',
+    badgeBg: 'rgba(251,191,36,0.15)',
+    barColor: '#fbbf24',
+    Icon: Crown,
+  },
+  {
+    name: 'Platinum',
+    min: 10001,
+    max: Infinity,
+    next: null,
+    nextAt: null,
+    cardBg: '#0d0d1f',
+    accent: '#c084fc',
+    badgeBg: 'rgba(192,132,252,0.18)',
+    barColor: '#c084fc',
+    Icon: Gem,
+  },
+] as const;
+
+type Tier = typeof TIERS[number];
+
+const getTier = (balance: number): Tier & { progress: number; tokensToNext: number } => {
+  const tier = (TIERS.find(t => balance >= t.min && balance <= t.max) ?? TIERS[0]) as Tier;
+  let progress = 1;
+  let tokensToNext = 0;
+  if (tier.nextAt !== null) {
+    const span = tier.nextAt - tier.min;
+    progress = Math.min((balance - tier.min) / span, 1);
+    tokensToNext = Math.max(tier.nextAt - balance, 0);
+  }
+  return { ...tier, progress, tokensToNext };
+};
+
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning ☀️';
+  if (hour < 18) return 'Good afternoon 🌤️';
+  return 'Good evening 🌙';
+};
 
 const CustomerHome: React.FC<CustomerHomeProps> = ({
   offers,
   merchants = [],
   recentStores = [],
   balance,
+  userName,
   onOpenWallet,
   onScan,
 }) => {
@@ -507,71 +584,107 @@ const CustomerHome: React.FC<CustomerHomeProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Good Morning</Text>
-            <Text style={styles.userName}>Alex Johnson</Text>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.userName}>
+              {userName ? `Hi, ${userName.split(' ')[0]} 👋` : 'Welcome back 👋'}
+            </Text>
           </View>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => router.push('/(customer)/notifications' as any)}
-          >
-            <Bell size={20} color="#475569" />
-            {unreadCount > 0 && (
-              <View style={styles.notificationBadge}>
-                {unreadCount < 10 && (
-                  <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
-                )}
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              onPress={() => router.push('/(customer)/chat' as any)}
+            >
+              <MessageCircle size={20} color="#475569" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              onPress={() => router.push('/(customer)/notifications' as any)}
+            >
+              <Bell size={20} color="#475569" />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  {unreadCount < 10 && (
+                    <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Membership Card */}
-        <View>
-          <TouchableOpacity onPress={onOpenWallet} style={styles.membershipCard}>
-            <View style={styles.cardGradient}>
-              {/* Background Pattern */}
-              <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 20 }]}>
-                <Crown
-                  size={240}
-                  color="#ffffff"
-                  style={{ position: 'absolute', right: -60, bottom: -60, opacity: 0.04, transform: [{ rotate: '-20deg' }] }}
-                />
-                <View style={{ position: 'absolute', top: -100, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: '#ffffff', opacity: 0.02 }} />
-              </View>
+        {(() => {
+          const tier = getTier(balance || 0);
+          const pct  = Math.round(tier.progress * 100);
+          const TierIcon = tier.Icon;
+          return (
+            <TouchableOpacity onPress={onOpenWallet} style={styles.membershipCard} activeOpacity={0.92}>
+              <View style={[styles.cardGradient, { backgroundColor: tier.cardBg }]}>
+                {/* Decorative background icon */}
+                <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 20 }]}>
+                  <TierIcon
+                    size={220}
+                    color="#ffffff"
+                    style={{ position: 'absolute', right: -50, bottom: -50, opacity: 0.04, transform: [{ rotate: '-15deg' }] }}
+                  />
+                </View>
 
-              <View style={styles.cardHeader}>
-                <View style={styles.memberBadge}>
-                  <Crown size={14} color="#fbbf24" fill="#fbbf24" />
-                  <Text style={styles.memberText}>Gold Member</Text>
+                {/* Tier badge */}
+                <View style={styles.cardHeader}>
+                  <View style={[styles.memberBadge, { backgroundColor: tier.badgeBg }]}>
+                    <TierIcon size={13} color={tier.accent} fill={tier.accent} />
+                    <Text style={[styles.memberText, { color: tier.accent }]}>{tier.name} Member</Text>
+                  </View>
                 </View>
-              </View>
 
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginVertical: 12 }}>
-                <Text style={{ color: '#94a3b8', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, textAlign: 'center' }}>
-                  Available Balance
-                </Text>
-                <Text style={{ fontSize: 48, fontWeight: '900', color: '#ffffff', letterSpacing: -1, textAlign: 'center' }}>
-                  {(balance || 0).toLocaleString()}
-                  <Text style={{ fontSize: 20, color: '#fbbf24', fontWeight: '700' }}> dandan</Text>
-                </Text>
-              </View>
+                {/* Balance */}
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginVertical: 12 }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 }}>
+                    Available Balance
+                  </Text>
+                  <Text style={{ fontSize: 48, fontWeight: '900', color: '#ffffff', letterSpacing: -1 }}>
+                    {(balance || 0).toLocaleString()}
+                    <Text style={{ fontSize: 20, color: tier.accent, fontWeight: '700' }}> dandan</Text>
+                  </Text>
+                </View>
 
-              <View style={styles.progressSection}>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>Next: Platinum</Text>
-                  <Text style={styles.progressPercentage}>75%</Text>
-                </View>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: '75%' }]} />
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, opacity: 0.5 }}>
-                  <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>ID: 8839201</Text>
-                  <Text style={{ color: '#fff', fontSize: 10, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) }}>09/28</Text>
+                {/* Progress toward next tier */}
+                <View style={styles.progressSection}>
+                  {tier.next ? (
+                    <>
+                      <View style={styles.progressHeader}>
+                        <Text style={styles.progressLabel}>
+                          {tier.tokensToNext.toLocaleString()} to {tier.next}
+                        </Text>
+                        <Text style={styles.progressPercentage}>{pct}%</Text>
+                      </View>
+                      <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: tier.accent }]} />
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.progressHeader}>
+                        <Text style={styles.progressLabel}>Maximum Tier Reached</Text>
+                        <Text style={[styles.progressPercentage, { color: tier.accent }]}>✦ Platinum</Text>
+                      </View>
+                      <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: '100%', backgroundColor: tier.accent }]} />
+                      </View>
+                    </>
+                  )}
+                  {/* Tier thresholds hint */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, opacity: 0.45 }}>
+                    <Text style={{ color: '#fff', fontSize: 10 }}>{tier.name}</Text>
+                    {tier.next && (
+                      <Text style={{ color: '#fff', fontSize: 10 }}>{tier.next} at {(tier.nextAt ?? 0).toLocaleString()}</Text>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        </View>
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -787,10 +900,24 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight: 36,
   },
-  notificationButton: {
-    padding: 12,
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerIconBtn: {
+    padding: 10,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    position: 'relative',
+  },
+  // kept for badge positioning reference (badge is relative to headerIconBtn)
+  notificationButton: {
+    padding: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#f1f5f9',
     position: 'relative',
@@ -883,7 +1010,6 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#fbbf24',
     borderRadius: 2,
   },
   quickActions: {
@@ -968,8 +1094,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   offerCard: {
-    width: 280,
-    height: 112,
+    width: 260,
+    height: 104,
     borderRadius: 18,
     backgroundColor: '#ffffff',
     flexDirection: 'row',
@@ -982,35 +1108,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
-  // Left: square image
+  // Left: image section — padding gives the inset margin
   offerImageWrap: {
-    width: 112,
-    height: 112,
-    position: 'relative',
+    width: 96,
+    height: 104,
+    padding: 8,
+  },
+  // Inner container clips image to rounded corners
+  offerImageInner: {
+    width: 80,
+    height: 88,
+    borderRadius: 12,
     overflow: 'hidden',
   },
-  // Local require() assets: explicit px dimensions so RN scales them down
-  // instead of rendering at natural resolution then overflowing the container.
-  offerLocalImage: {
-    width: 112,
-    height: 112,
+  // Image fills the inner container exactly — no absoluteFill
+  offerImg: {
+    width: 80,
+    height: 88,
   },
   offerImagePlaceholder: {
+    width: 80,
+    height: 88,
     backgroundColor: '#1e293b',
     justifyContent: 'center',
     alignItems: 'center',
   },
   offerHotBadge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 5,
+    left: 5,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 10,
-    paddingHorizontal: 6,
+    borderRadius: 8,
+    paddingHorizontal: 5,
     paddingVertical: 2,
   },
   offerHotBadgeText: {
-    fontSize: 14,
+    fontSize: 12,
   },
   // Right: text body
   offerBody: {

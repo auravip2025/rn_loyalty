@@ -1,8 +1,8 @@
-import { ArrowLeft, CheckCircle, Gift, Tag, Zap } from 'lucide-react-native';
+import { AlertCircle, ArrowLeft, CheckCircle, Gift, Tag, Zap } from 'lucide-react-native';
 import React from 'react';
 import { getRewardImage } from '../../utils/rewardImages';
+import { getRewardDetails } from '../../utils/rewardDetails';
 import {
-  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -18,32 +18,23 @@ const { height } = Dimensions.get('window');
 
 const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
   const insets = useSafeAreaInsets();
-  // `redeemed` is a controlled prop, not local state. The page component
-  // (offer-details.tsx) owns it so it resets to false on every fresh navigation
-  // into this screen (stack push re-mounts), eliminating the stale-state bug
-  // where offer A's "already redeemed" state leaked into offer B.
 
   if (!offer) return null;
 
   const localImage = getRewardImage(offer.title);
-  const hasImage   = !!offer.image || !!localImage;
-  const hasPoints = !!offer.discount; // e.g. "200 pts"
-  const hasPrice  = offer.price != null && offer.price > 0;
+  // Prefer merchant-configured details; fall back to keyword-matched mock data
+  const details    = offer.productDetails && (
+                       offer.productDetails.highlights?.length ||
+                       offer.productDetails.specs?.length ||
+                       offer.productDetails.category
+                     )
+                     ? offer.productDetails
+                     : getRewardDetails(offer.title);
+  const hasPoints  = !!offer.discount;
+  const hasPrice   = offer.price != null && offer.price > 0;
 
   const handleRedeem = () => {
-    Alert.alert(
-      'Redeem Reward',
-      `Use ${offer.discount || 'this reward'} to redeem "${offer.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Redeem',
-          onPress: () => {
-            if (onCheckout) onCheckout(offer.price || 0);
-          },
-        },
-      ]
-    );
+    if (onCheckout) onCheckout(offer.price || 0);
   };
 
   return (
@@ -60,7 +51,7 @@ const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
         style={{ flex: 1 }}
         bounces={false}
       >
-        {/* Hero */}
+        {/* ── Hero ──────────────────────────────────────────────────────────── */}
         <View style={styles.hero}>
           {offer.image ? (
             <Image source={{ uri: offer.image }} style={styles.heroImage} resizeMode="cover" />
@@ -73,6 +64,11 @@ const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
           )}
           <View style={styles.heroOverlay} />
           <View style={styles.heroContent}>
+            {/* Category pill */}
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{details.category}</Text>
+            </View>
+            {/* Points badge */}
             {hasPoints && (
               <View style={styles.pointsBadge}>
                 <Zap size={12} color="#fbbf24" fill="#fbbf24" />
@@ -83,7 +79,7 @@ const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
           </View>
         </View>
 
-        {/* Content sheet */}
+        {/* ── White sheet ───────────────────────────────────────────────────── */}
         <View style={styles.sheet}>
           <View style={styles.sheetContent}>
 
@@ -91,9 +87,7 @@ const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
             {redeemed && (
               <View style={styles.redeemedBanner}>
                 <CheckCircle size={18} color="#059669" />
-                <Text style={styles.redeemedText}>
-                  Redemption sent to checkout!
-                </Text>
+                <Text style={styles.redeemedText}>Redemption sent to checkout!</Text>
               </View>
             )}
 
@@ -102,7 +96,16 @@ const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
               <Text style={styles.description}>{offer.desc}</Text>
             )}
 
-            {/* Cost row */}
+            {/* ── Highlights row ─────────────────────────────────────────────── */}
+            <View style={styles.highlightsRow}>
+              {details.highlights.map((h, i) => (
+                <View key={i} style={styles.highlightChip}>
+                  <Text style={styles.highlightText}>{h}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* ── Cost cards ─────────────────────────────────────────────────── */}
             <View style={styles.costRow}>
               {hasPoints && (
                 <View style={styles.costCard}>
@@ -126,13 +129,57 @@ const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
               )}
             </View>
 
-            {/* Expires */}
+            {/* ── Product details card ───────────────────────────────────────── */}
+            <View style={styles.detailsCard}>
+              <Text style={styles.detailsCardTitle}>Product Details</Text>
+              {details.specs.map((spec, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.specRow,
+                    i < details.specs.length - 1 && styles.specRowBorder,
+                  ]}
+                >
+                  <Text style={styles.specLabel}>{spec.label}</Text>
+                  <Text style={styles.specValue}>{spec.value}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* ── What's included ────────────────────────────────────────────── */}
+            {details.includes && details.includes.length > 0 && (
+              <View style={styles.includesCard}>
+                <Text style={styles.includesTitle}>What's Included</Text>
+                {details.includes.map((item, i) => (
+                  <View key={i} style={styles.includeRow}>
+                    <CheckCircle size={15} color="#10b981" />
+                    <Text style={styles.includeText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* ── Allergen / dietary notice ──────────────────────────────────── */}
+            {!!details.allergens && (
+              <View style={styles.allergenRow}>
+                <AlertCircle size={14} color="#d97706" style={{ flexShrink: 0 }} />
+                <Text style={styles.allergenText}>{details.allergens}</Text>
+              </View>
+            )}
+
+            {/* ── Expiry ─────────────────────────────────────────────────────── */}
             {!!offer.expires && (
               <View style={styles.expiryRow}>
                 <Text style={styles.expiryLabel}>Valid until</Text>
                 <Text style={styles.expiryValue}>{offer.expires}</Text>
               </View>
             )}
+
+            {/* ── Terms & conditions ─────────────────────────────────────────── */}
+            <View style={styles.termsBox}>
+              <Text style={styles.termsTitle}>Terms & Conditions</Text>
+              <Text style={styles.termsText}>{details.terms}</Text>
+            </View>
 
           </View>
         </View>
@@ -146,7 +193,7 @@ const OfferDetails = ({ offer, redeemed = false, onBack, onCheckout }) => {
         <ArrowLeft size={20} color="#ffffff" />
       </TouchableOpacity>
 
-      {/* Footer */}
+      {/* Footer CTA */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
         <TouchableOpacity
           style={[styles.redeemBtn, redeemed && styles.redeemBtnDone]}
@@ -167,6 +214,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+
+  // ── Hero ───────────────────────────────────────────────────────────────────
   hero: {
     height: height * 0.42,
     position: 'relative',
@@ -185,13 +234,28 @@ const styles = StyleSheet.create({
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   heroContent: {
     position: 'absolute',
     bottom: 32,
     left: 24,
     right: 24,
+    gap: 8,
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   pointsBadge: {
     flexDirection: 'row',
@@ -202,7 +266,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
-    marginBottom: 10,
   },
   pointsBadgeText: {
     fontSize: 12,
@@ -219,16 +282,8 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  backButton: {
-    position: 'absolute',
-    left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
+  // ── Sheet ──────────────────────────────────────────────────────────────────
   sheet: {
     flex: 1,
     marginTop: -24,
@@ -238,15 +293,56 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sheetContent: {
-    padding: 28,
+    padding: 24,
     gap: 20,
   },
+
+  // ── Redeemed banner ────────────────────────────────────────────────────────
+  redeemedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#ecfdf5',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  redeemedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#059669',
+    flex: 1,
+  },
+
+  // ── Description ────────────────────────────────────────────────────────────
   description: {
     fontSize: 15,
     color: '#475569',
     lineHeight: 24,
     fontWeight: '500',
   },
+
+  // ── Highlights row ─────────────────────────────────────────────────────────
+  highlightsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  highlightChip: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+  },
+  highlightText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+
+  // ── Cost row ───────────────────────────────────────────────────────────────
   costRow: {
     flexDirection: 'row',
     gap: 12,
@@ -276,6 +372,102 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#4f46e5',
   },
+
+  // ── Product details card ───────────────────────────────────────────────────
+  detailsCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+  },
+  detailsCardTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0f172a',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  specRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+  },
+  specRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  specLabel: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  specValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+    maxWidth: '58%',
+    textAlign: 'right',
+  },
+
+  // ── What's included ────────────────────────────────────────────────────────
+  includesCard: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    padding: 16,
+    gap: 10,
+  },
+  includesTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#065f46',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  includeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  includeText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#065f46',
+    fontWeight: '600',
+    lineHeight: 19,
+  },
+
+  // ── Allergen notice ────────────────────────────────────────────────────────
+  allergenRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#fffbeb',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  allergenText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400e',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+
+  // ── Expiry ─────────────────────────────────────────────────────────────────
   expiryRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,6 +487,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
   },
+
+  // ── Terms ──────────────────────────────────────────────────────────────────
+  termsBox: {
+    gap: 6,
+    paddingTop: 4,
+  },
+  termsTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+
+  // ── Back button ────────────────────────────────────────────────────────────
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ── Footer CTA ─────────────────────────────────────────────────────────────
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -323,23 +548,6 @@ const styles = StyleSheet.create({
     shadowColor: '#059669',
     flexDirection: 'row',
     gap: 8,
-  },
-  redeemedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#ecfdf5',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-  },
-  redeemedText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#059669',
-    flex: 1,
   },
   redeemBtnText: {
     fontSize: 16,

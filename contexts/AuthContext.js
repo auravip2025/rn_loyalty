@@ -65,10 +65,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   // OTP-based login (no password required)
-  const loginWithOtp = async (email, selectedRole, isNewUser = false, userId = Date.now()) => {
+  const loginWithOtp = async (email, selectedRole, isNewUser = false, userId = Date.now(), extraUserData = {}) => {
     try {
       setLoading(true);
-      const sessionUser = { id: userId, email, isNew: isNewUser };
+      // Preserve any profile data returned by the backend (name, phone, etc.)
+      const sessionUser = { id: userId, email, isNew: isNewUser, ...extraUserData };
 
       // Write ALL storage keys before updating React state.
       // Apollo's authLink reads the token from AsyncStorage on every request —
@@ -169,6 +170,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Save customer full name + phone after first registration
+  const completeCustomerOnboarding = async (fullName, phone) => {
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const token = await AsyncStorage.getItem('@dandan_auth_token');
+
+      // Split "Jane Smith" → firstName="Jane", lastName="Smith"
+      const parts = fullName.trim().split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName  = parts.slice(1).join(' ') || '';
+
+      // Persist to the user-service (best-effort — don't block if it fails)
+      if (user?.id && token) {
+        await fetch(`${API_URL}/users/${user.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ firstName, lastName, mobileNumber: phone }),
+        }).catch(err => console.warn('[AuthContext] updateProfile failed (non-fatal):', err.message));
+      }
+
+      // Update local state so the home screen shows the name immediately
+      const updatedUser = { ...user, name: fullName, firstName, lastName, phone, isNew: false };
+      setUser(updatedUser);
+      await AsyncStorage.setItem('@dandan_user', JSON.stringify(updatedUser));
+    } catch (err) {
+      console.warn('[AuthContext] completeCustomerOnboarding error:', err.message);
+    }
+  };
+
   const logout = async () => {
     try {
       await AsyncStorage.multiRemove([
@@ -200,6 +230,7 @@ export const AuthProvider = ({ children }) => {
     loginWithOtp,
     saveMerchantProfile,
     updateMerchantProfile,
+    completeCustomerOnboarding,
     logout,
   };
 

@@ -49,10 +49,16 @@ export default function CustomerLayout() {
                 }}
             />
             <Tabs.Screen
+                name="analytics"
+                options={{
+                    title: 'Insights',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
+                }}
+            />
+            <Tabs.Screen
                 name="chat"
                 options={{
-                    title: 'Chat',
-                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+                    href: null,
                 }}
             />
             <Tabs.Screen
@@ -118,6 +124,12 @@ export default function CustomerLayout() {
             />
             <Tabs.Screen
                 name="campaign-offer"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="onboarding"
                 options={{
                     href: null,
                 }}
