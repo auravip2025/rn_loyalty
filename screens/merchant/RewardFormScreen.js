@@ -122,13 +122,25 @@ const RewardFormScreen = () => {
 
                 // Fetch stores
                 const storeRes = await fetch(`${API_URL}/stores/merchant/${merchantId}`, { headers });
-                const storeData = await storeRes.json();
+                const storeText = await storeRes.text();
+                let storeData = [];
+                try {
+                    storeData = JSON.parse(storeText);
+                } catch (e) {
+                    console.warn('[RewardForm] Failed to parse stores:', storeText);
+                }
                 const storeList = Array.isArray(storeData) ? storeData : [];
                 setStores(storeList);
 
                 if (isEdit) {
                     const res = await fetch(`${API_URL}/catalog/rewards/${params.id}`, { headers });
-                    const data = await res.json();
+                    const text = await res.text();
+                    let data = {};
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        console.warn('[RewardForm] Failed to parse reward:', text);
+                    }
                     if (res.ok) {
                         setReward(data);
                         setForm({

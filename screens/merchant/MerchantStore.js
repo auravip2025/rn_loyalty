@@ -11,7 +11,9 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -21,34 +23,70 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 import Card from '../../components/old_app/common/Card';
 import ScreenWrapper from '../../components/old_app/common/ScreenWrapper';
 import LocationPicker from '../../components/merchant/LocationPicker';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 
+const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || '';
+
+const staticMapUrl = (lat, lng) =>
+  `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=600x200&scale=2&markers=color:red%7C${lat},${lng}&key=${MAPS_KEY}`;
+
 // ── Store card ────────────────────────────────────────────────────────────────
-const StoreCard = ({ store }) => (
-  <Card style={styles.storeCard}>
-    <View style={styles.storeRow}>
-      <View style={styles.storeIconWrap}>
-        <Store size={20} color="#4f46e5" />
+const StoreCard = ({ store }) => {
+  const openMaps = () => {
+    if (store.latitude && store.longitude) {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`);
+    } else if (store.address) {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address)}`);
+    }
+  };
+
+  return (
+    <Card style={styles.storeCard}>
+      <View style={styles.storeRow}>
+        <View style={styles.storeIconWrap}>
+          <Store size={20} color="#4f46e5" />
+        </View>
+        <View style={styles.storeInfo}>
+          <Text style={styles.storeName}>{store.name}</Text>
+          {store.address ? (
+            <TouchableOpacity style={styles.storeAddressRow} activeOpacity={0.7} onPress={openMaps}>
+              <MapPin size={11} color="#4f46e5" />
+              <Text style={[styles.storeAddress, { color: '#4f46e5' }]} numberOfLines={1}>{store.address}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.storeNoAddress}>No location set</Text>
+          )}
+        </View>
+        <ChevronRight size={16} color="#cbd5e1" />
       </View>
-      <View style={styles.storeInfo}>
-        <Text style={styles.storeName}>{store.name}</Text>
-        {store.address ? (
-          <View style={styles.storeAddressRow}>
-            <MapPin size={11} color="#94a3b8" />
-            <Text style={styles.storeAddress} numberOfLines={1}>{store.address}</Text>
-          </View>
-        ) : (
-          <Text style={styles.storeNoAddress}>No location set</Text>
-        )}
-      </View>
-      <ChevronRight size={16} color="#cbd5e1" />
-    </View>
-  </Card>
-);
+      {store.latitude && store.longitude && (
+        <TouchableOpacity style={styles.storeMapWrapper} activeOpacity={0.8} onPress={openMaps}>
+          <MapView
+            style={StyleSheet.absoluteFillObject}
+            liteMode={true}
+            initialRegion={{
+              latitude: store.latitude,
+              longitude: store.longitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            }}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            pitchEnabled={false}
+            rotateEnabled={false}
+          >
+            <Marker coordinate={{ latitude: store.latitude, longitude: store.longitude }} />
+          </MapView>
+        </TouchableOpacity>
+      )}
+    </Card>
+  );
+};
 
 // ── Create Store Modal ────────────────────────────────────────────────────────
 const CreateStoreModal = ({ visible, merchantId, onClose, onCreated }) => {
@@ -201,7 +239,13 @@ const MerchantStore = ({ merchantId }) => {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
           if (!res.ok) throw new Error(`${res.status}`);
-          const data = await res.json();
+          const text = await res.text();
+          let data = [];
+          try {
+            if (text) data = JSON.parse(text);
+          } catch (e) {
+            console.warn('[MerchantStore] Failed to parse stores:', text);
+          }
           if (!cancelled) setStores(Array.isArray(data) ? data : []);
         } catch (err) {
           console.warn('[MerchantStore] load failed:', err.message);
@@ -347,6 +391,16 @@ const styles = StyleSheet.create({
   },
   storeCard: {
     padding: 0,
+    overflow: 'hidden',
+  },
+  storeMapWrapper: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#e2e8f0',
+  },
+  storeMapImage: {
+    width: '100%',
+    height: '100%',
   },
   storeRow: {
     flexDirection: 'row',

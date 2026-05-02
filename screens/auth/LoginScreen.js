@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArrowLeft, ArrowRight, LayoutGrid, Mail, Zap } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -173,150 +175,155 @@ const LoginScreen = () => {
   };
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
 
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <View style={[styles.logo, { backgroundColor: primaryColor }]}>
-            {activeRole === 'customer' ? (
-              <Zap size={48} color="#ffffff" />
-            ) : (
-              <LayoutGrid size={48} color="#ffffff" />
-            )}
-          </View>
-          <Text style={styles.brand}>
-            dan<Text style={[styles.brandAccent, { color: primaryColor }]}>dan</Text>
-          </Text>
-          <Text style={styles.tagline}>
-            {activeRole === 'customer' ? 'Earn. Redeem. Repeat.' : 'Scale your brand loyalty.'}
-          </Text>
-        </View>
-
-        {/* Role Toggle */}
-        <View style={styles.roleToggle}>
-          {['customer', 'merchant'].map((r) => (
-            <TouchableOpacity
-              key={r}
-              onPress={() => switchRole(r)}
-              style={[styles.roleButton, activeRole === r && styles.roleButtonActive]}
-            >
-              <Text style={[styles.roleText, activeRole === r && { color: primaryColor }]}>
-                {r.charAt(0).toUpperCase() + r.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Email Step ── */}
-        {step === 'email' && (
-          <View style={styles.form}>
-            <Input
-              label="Email Address"
-              icon={Mail}
-              placeholder={PLACEHOLDER_EMAILS[activeRole]}
-              value={email}
-              onChange={(val) => { setEmail(val); if (emailError) setEmailError(''); }}
-              autoFocus
-              testID="email-input"
-            />
-            <Button
-              onPress={handleSendOtp}
-              variant={activeRole === 'customer' ? 'primary' : 'merchant'}
-              style={styles.submitButton}
-              loading={loading}
-              disabled={loading}
-              testID="send-otp-btn"
-            >
-              {isNewUser ? 'Register with OTP' : 'Send OTP'}
-              <ArrowRight size={20} color="#ffffff" />
-            </Button>
-
-            {emailError ? <Text style={styles.inlineError}>{emailError}</Text> : null}
-
-            {/* New / Existing toggle */}
-            <TouchableOpacity onPress={() => setIsNewUser(!isNewUser)} style={styles.toggleRow}>
-              <Text style={styles.toggleText}>
-                {isNewUser ? 'Already have an account? ' : "New to dandan? "}
-                <Text style={[styles.toggleLink, { color: primaryColor }]}>
-                  {isNewUser ? 'Log In' : 'Register'}
-                </Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── OTP Step ── */}
-        {step === 'otp' && (
-          <View style={styles.form}>
-
-            {/* Back button */}
-            <TouchableOpacity onPress={() => setStep('email')} style={styles.backRow}>
-              <ArrowLeft size={16} color="#64748b" />
-              <Text style={styles.backText}>Change email</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.otpLabel}>
-              Enter the 6-digit code sent to
-            </Text>
-            <Text style={[styles.otpEmail, { color: primaryColor }]}>{email}</Text>
-
-            {/* OTP Boxes */}
-            <View style={styles.otpRow}>
-              {otp.map((digit, i) => (
-                <TextInput
-                  key={i}
-                  ref={otpRefs[i]}
-                  style={[
-                    styles.otpBox,
-                    digit ? { borderColor: primaryColor } : {},
-                    otpError ? styles.otpBoxError : {},
-                  ]}
-                  value={digit}
-                  onChangeText={(t) => handleOtpChange(t, i)}
-                  onKeyPress={(e) => handleOtpKeyPress(e, i)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  textAlign="center"
-                  autoFocus={i === 0}
-                  selectTextOnFocus
-                  testID={`otp-input-${i}`}
-                  accessibilityLabel={`OTP digit ${i + 1}`}
-                />
-              ))}
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <View style={[styles.logo, { backgroundColor: primaryColor }]}>
+              {activeRole === 'customer' ? (
+                <Zap size={48} color="#ffffff" />
+              ) : (
+                <LayoutGrid size={48} color="#ffffff" />
+              )}
             </View>
-
-            {otpError ? <Text style={styles.otpErrorText}>{otpError}</Text> : null}
-
-
-            <Button
-              onPress={handleVerifyOtp}
-              variant={activeRole === 'customer' ? 'primary' : 'merchant'}
-              style={styles.submitButton}
-              disabled={loading}
-              loading={loading}
-              testID="verify-otp-btn"
-            >
-              Verify & Continue
-              <ArrowRight size={20} color="#ffffff" />
-            </Button>
-
-            <TouchableOpacity onPress={() => setStep('email')} style={styles.resendRow}>
-              <Text style={styles.resendText}>
-                Didn't receive it?{' '}
-                <Text style={[styles.resendLink, { color: primaryColor }]}>Resend</Text>
-              </Text>
-            </TouchableOpacity>
+            <Text style={styles.brand}>
+              dan<Text style={[styles.brandAccent, { color: primaryColor }]}>dan</Text>
+            </Text>
+            <Text style={styles.tagline}>
+              {activeRole === 'customer' ? 'Earn. Redeem. Repeat.' : 'Scale your brand loyalty.'}
+            </Text>
           </View>
-        )}
 
-      </View>
-    </ScrollView>
+          {/* Role Toggle */}
+          <View style={styles.roleToggle}>
+            {['customer', 'merchant'].map((r) => (
+              <TouchableOpacity
+                key={r}
+                onPress={() => switchRole(r)}
+                style={[styles.roleButton, activeRole === r && styles.roleButtonActive]}
+              >
+                <Text style={[styles.roleText, activeRole === r && { color: primaryColor }]}>
+                  {r.charAt(0).toUpperCase() + r.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* ── Email Step ── */}
+          {step === 'email' && (
+            <View style={styles.form}>
+              <Input
+                label="Email Address"
+                icon={Mail}
+                placeholder={PLACEHOLDER_EMAILS[activeRole]}
+                value={email}
+                onChange={(val) => { setEmail(val); if (emailError) setEmailError(''); }}
+                autoFocus
+                testID="email-input"
+              />
+              <Button
+                onPress={handleSendOtp}
+                variant={activeRole === 'customer' ? 'primary' : 'merchant'}
+                style={styles.submitButton}
+                loading={loading}
+                disabled={loading}
+                testID="send-otp-btn"
+              >
+                {isNewUser ? 'Register with OTP' : 'Send OTP'}
+                <ArrowRight size={20} color="#ffffff" />
+              </Button>
+
+              {emailError ? <Text style={styles.inlineError}>{emailError}</Text> : null}
+
+              {/* New / Existing toggle */}
+              <TouchableOpacity onPress={() => setIsNewUser(!isNewUser)} style={styles.toggleRow}>
+                <Text style={styles.toggleText}>
+                  {isNewUser ? 'Already have an account? ' : "New to dandan? "}
+                  <Text style={[styles.toggleLink, { color: primaryColor }]}>
+                    {isNewUser ? 'Log In' : 'Register'}
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── OTP Step ── */}
+          {step === 'otp' && (
+            <View style={styles.form}>
+
+              {/* Back button */}
+              <TouchableOpacity onPress={() => setStep('email')} style={styles.backRow}>
+                <ArrowLeft size={16} color="#64748b" />
+                <Text style={styles.backText}>Change email</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.otpLabel}>
+                Enter the 6-digit code sent to
+              </Text>
+              <Text style={[styles.otpEmail, { color: primaryColor }]}>{email}</Text>
+
+              {/* OTP Boxes */}
+              <View style={styles.otpRow}>
+                {otp.map((digit, i) => (
+                  <TextInput
+                    key={i}
+                    ref={otpRefs[i]}
+                    style={[
+                      styles.otpBox,
+                      digit ? { borderColor: primaryColor } : {},
+                      otpError ? styles.otpBoxError : {},
+                    ]}
+                    value={digit}
+                    onChangeText={(t) => handleOtpChange(t, i)}
+                    onKeyPress={(e) => handleOtpKeyPress(e, i)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    textAlign="center"
+                    autoFocus={i === 0}
+                    selectTextOnFocus
+                    testID={`otp-input-${i}`}
+                    accessibilityLabel={`OTP digit ${i + 1}`}
+                  />
+                ))}
+              </View>
+
+              {otpError ? <Text style={styles.otpErrorText}>{otpError}</Text> : null}
+
+
+              <Button
+                onPress={handleVerifyOtp}
+                variant={activeRole === 'customer' ? 'primary' : 'merchant'}
+                style={styles.submitButton}
+                disabled={loading}
+                loading={loading}
+                testID="verify-otp-btn"
+              >
+                Verify & Continue
+                <ArrowRight size={20} color="#ffffff" />
+              </Button>
+
+              <TouchableOpacity onPress={() => setStep('email')} style={styles.resendRow}>
+                <Text style={styles.resendText}>
+                  Didn't receive it?{' '}
+                  <Text style={[styles.resendLink, { color: primaryColor }]}>Resend</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -331,7 +338,7 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   content: {
-    flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: 32,
   },
   logoContainer: {

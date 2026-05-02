@@ -121,7 +121,14 @@ const MerchantCatalog = () => {
         try {
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/catalog/rewards/merchant/${merchantId}`, { headers });
-            const data = await res.json();
+            const text = await res.text();
+            let data = [];
+            try {
+                if (text) data = JSON.parse(text);
+            } catch (e) {
+                console.warn('[MerchantCatalog] Failed to parse rewards:', text);
+                throw new Error('Invalid server response');
+            }
             if (!res.ok) throw new Error(data.error || 'Failed to load rewards');
             setRewards(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -137,12 +144,20 @@ const MerchantCatalog = () => {
         try {
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/stores/merchant/${merchantId}`, { headers });
+            const text = await res.text();
             if (!res.ok) {
-                const d = await res.json().catch(() => ({}));
+                let d = {};
+                try { if (text) d = JSON.parse(text); } catch (e) {}
                 console.error('[MerchantCatalog] loadStores failed:', res.status, d.error);
                 return;
             }
-            const data = await res.json();
+            let data = [];
+            try {
+                if (text) data = JSON.parse(text);
+            } catch (e) {
+                console.warn('[MerchantCatalog] Failed to parse stores:', text);
+                return;
+            }
             const list = Array.isArray(data) ? data : [];
             console.log('[MerchantCatalog] loadStores:', list.length, 'store(s)', list.map(s => ({ id: s.id, name: s.name })));
             setStores(list.map(s => ({
