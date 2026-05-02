@@ -16,7 +16,6 @@ import {
     ActivityIndicator,
     Dimensions,
     Image,
-    Keyboard,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -269,31 +268,6 @@ const RewardFormScreen = () => {
         }
     };
 
-    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-    const [kbVersion, setKbVersion] = useState(0);
-    const [scrollOffset, setScrollOffset] = useState(0);
-    const lastScrollY = useRef(0);
-
-    const handleFocus = () => {
-        setIsKeyboardVisible(true);
-    }
-    const handleBlur = () => {
-        setIsKeyboardVisible(false);
-        setScrollOffset(lastScrollY.current);
-        setKbVersion(v => v + 1);
-    }
-
-    useEffect(() => {
-        const hideSubscription = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-            () => {
-                setIsKeyboardVisible(false);
-                setScrollOffset(lastScrollY.current);
-                setKbVersion(v => v + 1);
-            }
-        );
-        return () => hideSubscription.remove();
-    }, []);
 
     if (loading) {
         return (
@@ -317,8 +291,6 @@ const RewardFormScreen = () => {
                     value={String(form[key] ?? '')}
                     placeholder={opts.placeholder || ''}
                     keyboardType={opts.numeric ? 'numeric' : 'default'}
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
                     onChangeText={(v) => {
                         setForm({ ...form, [key]: v });
                         if (err) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
@@ -335,10 +307,9 @@ const RewardFormScreen = () => {
         <>
             <ScreenWrapper backgroundColor="#fff" paddingHorizontal={0} bottomPadding={0} scroll={false}>
                 <KeyboardAvoidingView
-                    key={`kb-${kbVersion}`}
                     style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : (isKeyboardVisible ? 50 : 0)}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
                 >
                     <View style={styles.header}>
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -353,9 +324,6 @@ const RewardFormScreen = () => {
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={styles.scrollContent}
                         keyboardShouldPersistTaps="handled"
-                        contentOffset={{ x: 0, y: scrollOffset }}
-                        onScroll={(e) => { lastScrollY.current = e.nativeEvent.contentOffset.y; }}
-                        scrollEventThrottle={16}
                     >
                         {/* Image Section */}
                         <View style={styles.imageSection}>
@@ -413,8 +381,6 @@ const RewardFormScreen = () => {
                                             style={styles.ddSearchInput}
                                             placeholder="Search stores…"
                                             value={storeSearch}
-                                            onFocus={handleFocus}
-                                            onBlur={handleBlur}
                                             onChangeText={setStoreSearch}
                                         />
                                     </View>
@@ -535,8 +501,6 @@ const RewardFormScreen = () => {
                                             placeholder="e.g. Hot Coffee"
                                             placeholderTextColor="#cbd5e1"
                                             value={form.productDetails.category}
-                                            onFocus={handleFocus}
-                                            onBlur={handleBlur}
                                             onChangeText={v => setForm(f => ({
                                                 ...f,
                                                 productDetails: { ...f.productDetails, category: v },
@@ -555,8 +519,6 @@ const RewardFormScreen = () => {
                                                 placeholder={`Highlight ${i + 1}`}
                                                 placeholderTextColor="#cbd5e1"
                                                 value={form.productDetails.highlights[i] || ''}
-                                                onFocus={handleFocus}
-                                                onBlur={handleBlur}
                                                 onChangeText={v => {
                                                     const h = [...form.productDetails.highlights];
                                                     h[i] = v;
@@ -593,8 +555,6 @@ const RewardFormScreen = () => {
                                                     style={[styles.input, { flex: 2 }]}
                                                     placeholder="Label"
                                                     value={spec.label}
-                                                    onFocus={handleFocus}
-                                                    onBlur={handleBlur}
                                                     onChangeText={v => {
                                                         const s = [...form.productDetails.specs];
                                                         s[i] = { ...s[i], label: v };
@@ -605,8 +565,6 @@ const RewardFormScreen = () => {
                                                     style={[styles.input, { flex: 3 }]}
                                                     placeholder="Value"
                                                     value={spec.value}
-                                                    onFocus={handleFocus}
-                                                    onBlur={handleBlur}
                                                     onChangeText={v => {
                                                         const s = [...form.productDetails.specs];
                                                         s[i] = { ...s[i], value: v };
@@ -650,8 +608,6 @@ const RewardFormScreen = () => {
                                                     style={[styles.input, { flex: 1 }]}
                                                     placeholder={`Included item ${i + 1}`}
                                                     value={item}
-                                                    onFocus={handleFocus}
-                                                    onBlur={handleBlur}
                                                     onChangeText={v => {
                                                         const inc = [...(form.productDetails.includes || [])];
                                                         inc[i] = v;
@@ -678,8 +634,6 @@ const RewardFormScreen = () => {
                                             style={styles.input}
                                             placeholder="e.g. Contains dairy"
                                             value={form.productDetails.allergens}
-                                            onFocus={handleFocus}
-                                            onBlur={handleBlur}
                                             onChangeText={v => setForm(f => ({
                                                 ...f,
                                                 productDetails: { ...f.productDetails, allergens: v },
@@ -695,8 +649,6 @@ const RewardFormScreen = () => {
                                             style={[styles.input, { minHeight: 60 }]}
                                             placeholder="e.g. One per customer"
                                             value={form.productDetails.terms}
-                                            onFocus={handleFocus}
-                                            onBlur={handleBlur}
                                             onChangeText={v => setForm(f => ({
                                                 ...f,
                                                 productDetails: { ...f.productDetails, terms: v },
